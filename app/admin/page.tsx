@@ -52,7 +52,7 @@ export default function AdminPage(){
  const [tab,setTab]=useState<Tab>("overview");
  const [announcements,setAnnouncements]=useState<Announcement[]>(seedAnnouncements);
  const [students,setStudents]=useState<Student[]>(seedStudents);
- const [admins,setAdmins]=useState<Admin[]>(seedAdmins);
+ const [admins,setAdmins]=useState<Admin[]>([]);
  const [departments,setDepartments]=useState<Department[]>(seedDepartments);
  const [query,setQuery]=useState("");
  const [showForm,setShowForm]=useState(false);
