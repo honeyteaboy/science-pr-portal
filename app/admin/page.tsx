@@ -1,6 +1,6 @@
+"use client";
 import Link from "next/link";
 import { ArrowLeft, BarChart3, FileText, MessageCircle, Settings, Users } from "lucide-react";
-"use client";
 import { useEffect, useState } from "react";
 const items=[{id:1,title:"เปิดรับสมัครทุนการศึกษาสำหรับนักศึกษาคณะวิทยาศาสตร์"},{id:2,title:"กำหนดการลงทะเบียนและเพิ่ม-ถอนรายวิชา"},{id:3,title:"กิจกรรม Science Open House ประจำปี"},{id:4,title:"ประกาศแนวปฏิบัติการใช้ห้องปฏิบัติการ"}];
 export default function AdminPage(){
