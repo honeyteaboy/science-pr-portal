@@ -30,7 +30,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (!/^u\\d{13}$/.test(username)) {
+    if (!/^u\d{13}$/.test(username)) {
       setMessage("รูปแบบบัญชีนักศึกษาตัวอย่างควรเป็น u ตามด้วยตัวเลข 13 หลัก");
       return;
     }
