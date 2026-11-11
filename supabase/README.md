@@ -46,11 +46,11 @@ Add Redirect URLs:
 
 For Google OAuth, configure the Google provider in Supabase Authentication → Providers → Google, and add the Supabase callback URL shown in the provider setup to Google's Authorized redirect URIs.
 
-The app requests only `openid email profile`. It does not request Gmail inbox or Gmail sending scopes. Student email OTP and staff Google sign-in are separate flows.
+The public announcement homepage and published announcement detail pages can be read without signing in. Students can create an account with email and password; Supabase email confirmation should be enabled. Student accounts receive the `student` role automatically and can later choose topics and email notifications in `/profile`. Staff can sign in with email/password or Google OAuth. Staff accounts must be created by a trusted administrator and assigned `admin`, `reviewer`, or `superadmin` in the database before they can use the admin console. The Google flow requests only `openid email profile`; it does not request Gmail inbox or Gmail sending scopes.
 
 ## 5) Assign trusted staff roles
 
-Every new Google sign-in is assigned the `student` role by default. A trusted administrator must verify staff identity and promote the profile in Supabase SQL Editor. Example:
+Every new email/password registration or Google sign-in is assigned the `student` role by default. A trusted administrator must verify staff identity and promote the profile in Supabase SQL Editor. Example:
 
 ```sql
 update public.profiles
@@ -140,7 +140,7 @@ The function is configured with JWT verification disabled only because the sched
 ## 9) Important rollout notes
 
 - Existing prototype/localStorage announcements are not automatically migrated. Review and import them deliberately after confirming the data.
-- Actual email delivery requires a verified sender domain and configured Resend account.
+- Actual email delivery requires a verified sender domain and configured Resend account. Students must confirm their email, give separate email consent, enable email notifications, choose topics if desired, and have at least one official verified cohort membership before cohort-targeted announcement emails can be queued. Students can change or withdraw this setting in `/profile`.
 - The student feed will show no cohort-targeted items until official verified cohort memberships exist.
 - Social links/channels need the real faculty-owned URLs and API credentials before automatic posting to external platforms can be enabled.
 - Confirm official channels, consent text, urgent-news criteria, and the student roster with the course before production launch.
