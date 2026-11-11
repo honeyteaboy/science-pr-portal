@@ -12,6 +12,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const EMAIL_FROM = Deno.env.get("EMAIL_FROM") || "";
+const WORKER_SECRET = Deno.env.get("WORKER_SECRET") || "";
 const SITE_URL = (Deno.env.get("SITE_URL") || "https://science-pr-portal.vercel.app").replace(/\/$/, "");
 
 function escapeHtml(value: string): string {
@@ -29,6 +30,13 @@ function retryAt(attempts: number): string {
 }
 
 Deno.serve(async (request) => {
+  if (!WORKER_SECRET || request.headers.get("x-worker-secret") !== WORKER_SECRET) {
+    return new Response(JSON.stringify({ error: "Unauthorized worker request" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   if (request.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
