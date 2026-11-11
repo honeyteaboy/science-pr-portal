@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { adminRoleLabel, clearAdminSession, loadAdminAccounts, SESSION_KEY, type AdminAccount, type AdminSession } from "@/lib/admin-auth";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowLeft, BarChart3, Bell, CalendarDays, Check, ChevronRight, ClipboardList,
@@ -13,7 +13,8 @@ import {
 type Tab = "overview" | "announcements" | "students" | "admins" | "departments" | "calendar" | "analytics" | "settings";
 type Announcement = {id:number;title:string;category:string;department:string;body:string;status:"published"|"draft"|"pending";pinned:boolean;comments:boolean;date:string;eventDate:string;views:number;image?:string;targetCohorts?:string[];urgency?:"normal"|"urgent";actionLine?:string;eventTime?:string;eventLocation?:string;eventLink?:string;channels?:string[];reminderDays?:number[];checklist?:{audience:boolean;content:boolean;reviewer:boolean;channels:boolean;action:boolean};shareChecklist?:{relevance:boolean;audience:boolean;wording:boolean};postAt?:number;reviewLog?:string[];approvedBy?:string};
 type Student = {id:number;studentCode:string;name:string;department:string;year:number;status:"active"|"inactive"};
-type Admin = AdminAccount;
+type Admin = {id:number;username:string;name:string;role:"superadmin"|"editor"|"reviewer"|"viewer"};
+type AdminSession = {id:number;username:string;name:string;role:"superadmin"|"editor"|"reviewer"|"viewer"};
 type Department = {id:number;name:string;short:string};
 
 const seedAnnouncements:Announcement[]=[
@@ -68,19 +69,25 @@ export default function AdminPage(){
  useEffect(()=>{
   setAnnouncements(readStore("science-admin-announcements",seedAnnouncements));
   setStudents(readStore("science-admin-students",seedStudents));
-  const accounts=loadAdminAccounts();
-  setAdmins(accounts);
-  const savedSession=readStore<AdminSession|null>(SESSION_KEY,null);
-  const signedIn=savedSession?accounts.find(a=>a.id===savedSession.id&&a.username===savedSession.username&&a.role===savedSession.role):undefined;
-  if(signedIn)setCurrentUser({id:signedIn.id,username:signedIn.username,name:signedIn.name,role:signedIn.role});
-  else localStorage.removeItem(SESSION_KEY);
   setDepartments(readStore("science-admin-departments",seedDepartments));
   setLoaded(true);
-  setAuthReady(true);
+  const verifySession=async()=>{
+   if(!isSupabaseConfigured()){setAuthReady(true);return;}
+   try{
+    const supabase=createClient();
+    const {data:{user},error:userError}=await supabase.auth.getUser();
+    if(userError||!user){setAuthReady(true);return;}
+    const {data:profile,error:profileError}=await supabase.from("profiles").select("email,full_name,role,is_active").eq("id",user.id).single();
+    if(profileError||!profile||!profile.is_active||profile.role==="student"){setAuthReady(true);return;}
+    const mappedRole=profile.role==="superadmin"?"superadmin":profile.role==="admin"?"editor":profile.role==="reviewer"?"reviewer":"viewer";
+    setCurrentUser({id:-1,username:profile.email||user.email||"",name:profile.full_name||user.email||"บุคลากร",role:mappedRole});
+   }catch(error){console.error("Admin authentication check failed",error);}
+   finally{setAuthReady(true);}
+  };
+  void verifySession();
  },[]);
  useEffect(()=>{if(!loaded)return;localStorage.setItem("science-admin-announcements",JSON.stringify(announcements));},[announcements,loaded]);
  useEffect(()=>{if(!loaded)return;localStorage.setItem("science-admin-students",JSON.stringify(students));},[students,loaded]);
- useEffect(()=>{if(!loaded)return;localStorage.setItem("science-admin-users",JSON.stringify(admins));},[admins,loaded]);
  useEffect(()=>{if(!loaded)return;localStorage.setItem("science-admin-departments",JSON.stringify(departments));},[departments,loaded]);
  useEffect(()=>{const tick=()=>{const current=Date.now();setClock(current);setAnnouncements(xs=>{let changed=false;const next=xs.map(a=>{if(a.status==="pending"&&a.postAt&&a.postAt<=current){changed=true;return {...a,status:"published" as const,postAt:undefined,reviewLog:[...(a.reviewLog||[]),`${new Date(current).toLocaleString('th-TH')} · ครบ 10 นาที ระบบเผยแพร่อัตโนมัติ`]};}return a;});return changed?next:xs;});};tick();const timer=window.setInterval(tick,1000);return()=>window.clearInterval(timer);},[]);
 
@@ -118,13 +125,13 @@ export default function AdminPage(){
  return <main className="min-h-screen bg-[#f4f9fb] text-slate-800">
   <div className="border-b border-slate-200 bg-white"><div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
    <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-ocean-900 text-white"><Building2 size={22}/></div><div><p className="text-xs font-bold tracking-widest text-ocean-700">SCIENCE PR PORTAL</p><h1 className="text-lg font-black">ศูนย์จัดการระบบ</h1></div></div>
-   <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-cyan-50 px-3 py-2 text-xs font-bold text-ocean-800">{currentUser.name} · {adminRoleLabel(currentUser.role)}</span><Link href="/" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:border-ocean-400"><ArrowLeft size={16}/> ดูหน้าเว็บไซต์</Link><button onClick={()=>{clearAdminSession();router.replace("/login")}} className="rounded-xl border border-rose-200 px-3 py-2.5 text-sm font-bold text-rose-700">ออกจากระบบ</button><span className="hidden rounded-full bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 sm:inline-flex">Prototype Mode</span></div>
+   <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-cyan-50 px-3 py-2 text-xs font-bold text-ocean-800">{currentUser.name} · {adminRoleLabel(currentUser.role)}</span><Link href="/" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:border-ocean-400"><ArrowLeft size={16}/> ดูหน้าเว็บไซต์</Link><button onClick={async()=>{try{if(isSupabaseConfigured())await createClient().auth.signOut();}finally{router.replace("/login");router.refresh();}}} className="rounded-xl border border-rose-200 px-3 py-2.5 text-sm font-bold text-rose-700">ออกจากระบบ</button><span className="hidden rounded-full bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-800 sm:inline-flex">Supabase Auth</span></div>
   </div></div>
   <div className="mx-auto grid max-w-[1440px] gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:px-8">
    <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-5">
     <p className="px-3 pb-3 pt-2 text-[11px] font-black uppercase tracking-[.18em] text-slate-400">Workspace</p>
     <nav className="grid grid-cols-2 gap-1 sm:grid-cols-4 lg:grid-cols-1">{visibleTabs.map(t=><button key={t.id} onClick={()=>{setTab(t.id);setShowForm(false)}} className={`flex items-center gap-2 rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${tab===t.id?"bg-ocean-900 text-white shadow-sm":"text-slate-600 hover:bg-cyan-50 hover:text-ocean-800"}`}>{t.icon}<span>{t.label}</span>{tab===t.id&&<ChevronRight className="ml-auto hidden lg:block" size={15}/>}</button>)}</nav>
-    <div className="mt-4 hidden rounded-2xl bg-cyan-50 p-4 lg:block"><p className="text-xs font-bold text-ocean-900">ระบบต้นแบบ</p><p className="mt-1 text-xs leading-5 text-slate-500">ข้อมูลถูกบันทึกในเบราว์เซอร์นี้เท่านั้น</p></div>
+    <div className="mt-4 hidden rounded-2xl bg-cyan-50 p-4 lg:block"><p className="text-xs font-bold text-ocean-900">ยืนยันตัวตนด้วย Supabase</p><p className="mt-1 text-xs leading-5 text-slate-500">ข้อมูลประกาศในหน้าปัจจุบันยังเป็นข้อมูลตัวอย่างระหว่างเชื่อมฐานข้อมูล</p></div>
    </aside>
    <section className="min-w-0">
     {notice&&<div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{notice}</div>}
