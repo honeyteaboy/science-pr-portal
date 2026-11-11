@@ -218,7 +218,7 @@ export default function LoginPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)} placeholder="กรอกรหัสผ่านอีกครั้ง"
                   className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-ocean-500" />
               </div>
-              <button type="submit" disabled={!configured || loading !== null}
+              <button type="submit" disabled={(kind === "student" && !configured) || loading !== null}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-ocean-900 px-4 py-3.5 text-sm font-black text-white hover:bg-ocean-800 disabled:cursor-not-allowed disabled:opacity-50">
                 {loading === "register" ? <LoaderCircle className="animate-spin" size={17} /> : <UserPlus size={17} />}
                 สมัครบัญชีด้วยอีเมล
@@ -227,12 +227,21 @@ export default function LoginPage() {
             </form>
           ) : (
             <form onSubmit={signInWithPassword} className="mt-6 space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-bold">อีเมล</label>
-                <input id="email" type="email" autoComplete="email" required value={email}
-                  onChange={(e) => setEmail(e.target.value)} placeholder={kind === "staff" ? "staff@example.ac.th" : "student@example.ac.th"}
-                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-ocean-500" />
-              </div>
+              {kind === "staff" && !configured ? (
+                <div>
+                  <label htmlFor="username" className="block text-sm font-bold">ชื่อบัญชีผู้ดูแล</label>
+                  <input id="username" autoComplete="username" required value={username}
+                    onChange={(e) => setUsername(e.target.value)} placeholder="ชื่อบัญชี"
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-ocean-500" />
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="email" className="block text-sm font-bold">อีเมล</label>
+                  <input id="email" type="email" autoComplete="email" required value={email}
+                    onChange={(e) => setEmail(e.target.value)} placeholder={kind === "staff" ? "staff@example.ac.th" : "student@example.ac.th"}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-ocean-500" />
+                </div>
+              )}
               <div>
                 <label htmlFor="password" className="block text-sm font-bold">รหัสผ่าน</label>
                 <input id="password" type="password" autoComplete="current-password" required value={password}
