@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Mail, ShieldCheck, GraduationCap, Info, LoaderCircle, LockKeyhole, UserPlus } from "lucide-react";
+import { ArrowLeft, ShieldCheck, GraduationCap, Info, LoaderCircle, LockKeyhole, UserPlus } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 type AccountKind = "student" | "staff";
 type ScreenMode = "login" | "register";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
