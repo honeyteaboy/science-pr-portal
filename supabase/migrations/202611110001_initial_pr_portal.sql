@@ -96,6 +96,13 @@ alter table public.announcements
   add column if not exists pinned boolean not null default false,
   add column if not exists comments_enabled boolean not null default false;
 
+alter table public.announcements
+  add column if not exists department text not null default 'ประชาสัมพันธ์กลาง',
+  add column if not exists action_line text,
+  add column if not exists reminder_days integer[] not null default array[14,7,3]::integer[],
+  add column if not exists image_url text,
+  add column if not exists view_count bigint not null default 0;
+
 create index if not exists announcements_status_schedule_idx
   on public.announcements (status, scheduled_publish_at);
 
@@ -293,7 +300,10 @@ create or replace function public.create_announcement(
   p_event_date date default null,
   p_event_time text default null,
   p_event_location text default null,
-  p_channels text[] default array['website']::text[]
+  p_channels text[] default array['website']::text[],
+  p_department text default 'ประชาสัมพันธ์กลาง',
+  p_action_line text default null,
+  p_reminder_days integer[] default array[14,7,3]::integer[]
 )
 returns uuid
 language plpgsql
@@ -333,11 +343,14 @@ begin
 
   insert into public.announcements (
     title, body, topic_id, is_urgent, created_by, deadline_at,
-    event_date, event_time, event_location, channels
+    event_date, event_time, event_location, channels, department, action_line, reminder_days
   ) values (
     trim(p_title), trim(p_body), p_topic_id, coalesce(p_is_urgent, false),
     auth.uid(), p_deadline_at, p_event_date, nullif(trim(p_event_time), ''),
-    nullif(trim(p_event_location), ''), coalesce(p_channels, array['website']::text[])
+    nullif(trim(p_event_location), ''), coalesce(p_channels, array['website']::text[]),
+    coalesce(nullif(trim(p_department), ''), 'ประชาสัมพันธ์กลาง'),
+    nullif(trim(p_action_line), ''),
+    coalesce(p_reminder_days, array[14,7,3]::integer[])
   )
   returning id into v_id;
 
@@ -873,7 +886,7 @@ using (public.current_app_role() in ('admin', 'reviewer', 'superadmin'));
 
 -- Only the database scheduler should call this function.
 revoke all on function public.publish_due_announcements() from public, anon, authenticated;
-revoke all on function public.create_announcement(text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[]) from public, anon;
+revoke all on function public.create_announcement(text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[], text, text, integer[]) from public, anon;
 revoke all on function public.submit_announcement_review(uuid, boolean, boolean, boolean, boolean, text) from public, anon;
 revoke all on function public.set_student_preferences(uuid[], boolean, boolean) from public, anon;
 revoke all on function public.record_student_email_consent(boolean, text) from public, anon;
