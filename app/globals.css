@@ -2,8 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
+:root { color-scheme: light dark; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; font-family: Arial, "Noto Sans Thai", sans-serif; }
-button, input { font: inherit; }
+button, input, textarea, select { font: inherit; }
+
+@media (prefers-color-scheme: dark) {
+  body { background: #0b1220; color: #e2e8f0; }
+  [class*="bg-[#f4f9fb]"], [class*="bg-[#f5fafc]"] { background-color: #0b1220 !important; }
+  .bg-white { background-color: #111c2e !important; }
+  .bg-slate-50 { background-color: #152238 !important; }
+  .bg-slate-100 { background-color: #1e293b !important; }
+  .bg-cyan-50 { background-color: #102b3a !important; }
+  .bg-amber-50, .bg-amber-50\/70 { background-color: #332713 !important; }
+  .bg-rose-50 { background-color: #351c2a !important; }
+  .bg-emerald-50 { background-color: #123129 !important; }
+  .bg-violet-50 { background-color: #292345 !important; }
+  .text-slate-900, .text-slate-800 { color: #f1f5f9 !important; }
+  .text-slate-700, .text-slate-600 { color: #cbd5e1 !important; }
+  .text-slate-500, .text-slate-400 { color: #94a3b8 !important; }
+  .border-slate-200, .border-slate-300 { border-color: #334155 !important; }
+  .border-slate-100 { border-color: #25344a !important; }
+  input, textarea, select { background-color: #0f1a2b; color: #e2e8f0; border-color: #334155; }
+  input::placeholder, textarea::placeholder { color: #8292a8; }
+  .shadow-sm, .shadow-2xl { --tw-shadow-color: rgb(0 0 0 / 0.35); }
+}
