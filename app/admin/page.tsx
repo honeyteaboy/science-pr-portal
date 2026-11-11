@@ -96,6 +96,7 @@ export default function AdminPage(){
  const [dbCohorts,setDbCohorts]=useState<{id:string;code:string;label:string}[]>([]);
  const [reviewing,setReviewing]=useState<string|number|null>(null);
  const [reviewChecks,setReviewChecks]=useState({cohortsChecked:false,dateTimeLinksChecked:false,reviewerPassed:false,channelsChecked:false});
+ const [linkDrafts,setLinkDrafts]=useState<{label:string;url:string}[]>([{label:"",url:""}]);
 
  useEffect(()=>{
   setStudents(readStore("science-admin-students",seedStudents));
@@ -177,18 +178,94 @@ export default function AdminPage(){
  const canReviewAnnouncements=Boolean(currentUser);
  const visibleTabs=isSuperAdmin?tabs:tabs.filter(t=>["overview","announcements","calendar"].includes(t.id));
  const flash=(s:string)=>{setNotice(s);window.setTimeout(()=>setNotice(""),2600)};
- const startNew=()=>{if(!canEditAnnouncements){flash("บัญชีนี้ไม่มีสิทธิ์สร้างประกาศ");return}setEditing(null);setDraft({title:"",category:"ประกาศ",department:departments[0]?.name||"ประชาสัมพันธ์กลาง",body:"",eventDate:"",eventTime:"",eventLocation:"",eventLink:"",pinned:false,comments:false,image:"",targetCohorts:["all"],urgency:"normal",actionLine:"",channels:["เว็บไซต์"],reminderDays:[14,7,3],checklist:{audience:false,content:false,reviewer:false,channels:false,action:false},shareChecklist:{relevance:false,audience:false,wording:false}});setShowForm(true)};
- const editAnnouncement=(a:Announcement)=>{if(!canEditAnnouncements){flash("บัญชีนี้ไม่มีสิทธิ์แก้ไขประกาศ");return}setEditing(a.id);setDraft({title:a.title,category:a.category,department:a.department,body:a.body,eventDate:a.eventDate,eventTime:a.eventTime||"",eventLocation:a.eventLocation||"",eventLink:a.eventLink||"",pinned:a.pinned,comments:a.comments,image:a.image||"",targetCohorts:a.targetCohorts||["all"],urgency:a.urgency||"normal",actionLine:a.actionLine||"",channels:a.channels||["เว็บไซต์"],reminderDays:a.reminderDays||[],checklist:{audience:false,content:false,reviewer:false,channels:false,action:false},shareChecklist:{relevance:false,audience:false,wording:false}});setShowForm(true)};
- const saveAnnouncement=()=>{if(!draft.title.trim()||!draft.body.trim()){flash("กรุณากรอกหัวข้อและรายละเอียดประกาศ");return}
-  if(editing!==null){setAnnouncements(xs=>xs.map(a=>a.id===editing?{...a,...draft,status:"draft",postAt:undefined,approvedBy:undefined,reviewLog:appendLog(a,"แก้ไขเนื้อหาแล้ว ส่งกลับเป็นฉบับร่างเพื่อเริ่มตรวจใหม่")}:a));flash("บันทึกแล้ว และส่งกลับเป็นฉบับร่างเพื่อรีเช็คใหม่")}
-  else{setAnnouncements(xs=>[{...draft,id:Date.now(),status:"draft",date:new Date().toISOString().slice(0,10),views:0},...xs]);flash("เพิ่มประกาศฉบับร่างแล้ว")}
+ const startNew=()=>{if(!canEditAnnouncements){flash("บัญชีนี้ไม่มีสิทธิ์สร้างประกาศ");return}setEditing(null);setLinkDrafts([{label:"",url:""}]);setDraft({title:"",category:"ประกาศ",department:departments[0]?.name||"ประชาสัมพันธ์กลาง",body:"",eventDate:"",eventTime:"",eventLocation:"",eventLink:"",pinned:false,comments:false,image:"",targetCohorts:["all"],urgency:"normal",actionLine:"",channels:["เว็บไซต์"],reminderDays:[14,7,3],checklist:{audience:false,content:false,reviewer:false,channels:false,action:false},shareChecklist:{relevance:false,audience:false,wording:false}});setShowForm(true)};
+ const editAnnouncement=(a:Announcement)=>{if(!canEditAnnouncements){flash("บัญชีนี้ไม่มีสิทธิ์แก้ไขประกาศ");return}setEditing(a.id);setLinkDrafts((a.links?.length?a.links.map(x=>({label:x.label,url:x.url})):(a.eventLink?[{label:"ลิงก์ที่เกี่ยวข้อง",url:a.eventLink}]:[{label:"",url:""}])));setDraft({title:a.title,category:a.category,department:a.department,body:a.body,eventDate:a.eventDate,eventTime:a.eventTime||"",eventLocation:a.eventLocation||"",eventLink:a.eventLink||"",pinned:a.pinned,comments:a.comments,image:a.image||"",targetCohorts:a.targetCohorts||["all"],urgency:a.urgency||"normal",actionLine:a.actionLine||"",channels:a.channels||["เว็บไซต์"],reminderDays:a.reminderDays||[],checklist:{audience:false,content:false,reviewer:false,channels:false,action:false},shareChecklist:{relevance:false,audience:false,wording:false}});setShowForm(true)};
+ const saveAnnouncement=async()=>{
+  if(!draft.title.trim()||!draft.body.trim()){flash("กรุณากรอกหัวข้อและรายละเอียดประกาศ");return}
+  const links=linkDrafts.filter(link=>link.label.trim()||link.url.trim());
+  if(links.some(link=>!link.label.trim()||!/^https:\/\//i.test(link.url.trim()))){flash("ลิงก์ทุกช่องต้องมีชื่อ และ URL ต้องขึ้นต้นด้วย https://");return}
+  if(dataMode==="database"){
+   const topicSlug:Record<string,string>={"ประกาศ":"general","ประกาศทั่วไป":"general","ข่าวสาร":"general","การเรียน":"academic","ทุนการศึกษา":"scholarship","กยศ.":"student-loan","การยื่นเรื่องจบ":"graduation","กิจกรรม":"activities"};
+   const wantedSlug=topicSlug[draft.category]||"general";
+   const topic=dbTopics.find(x=>x.slug===wantedSlug)||dbTopics.find(x=>x.name===draft.category);
+   if(!topic){flash("ไม่พบหัวข้อประกาศนี้ในฐานข้อมูล โปรดตรวจ migration หรือตั้งค่าหัวข้อ");return}
+   const selectedCohorts=draft.targetCohorts.includes("all")?dbCohorts:dbCohorts.filter(x=>draft.targetCohorts.includes(x.code));
+   if(!selectedCohorts.length){flash("กรุณาเลือกอย่างน้อยหนึ่งรุ่นที่มีอยู่ในฐานข้อมูล");return}
+   try{
+    const endpoint=editing!==null?"/api/announcements/"+encodeURIComponent(String(editing)):"/api/announcements";
+    const response=await fetch(endpoint,{method:editing!==null?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      title:draft.title,body:draft.body,topicId:topic.id,cohortIds:selectedCohorts.map(x=>x.id),
+      links:links.map(x=>({label:x.label,url:x.url})),isUrgent:draft.urgency==="urgent",
+      eventDate:draft.eventDate||null,eventTime:draft.eventTime||null,eventLocation:draft.eventLocation||null,
+      department:draft.department,actionLine:draft.actionLine,channels:draft.channels,
+      reminderDays:draft.reminderDays
+    })});
+    const payload=await response.json();
+    if(!response.ok)throw new Error(payload.error||"ไม่สามารถบันทึกประกาศได้");
+    setAnnouncements(await fetchDatabaseAnnouncements());
+    flash(editing!==null?"แก้ไขฉบับร่างแล้ว ต้องตรวจทานใหม่ก่อนโพสต์":"สร้างประกาศฉบับร่างในฐานข้อมูลแล้ว");
+    setShowForm(false);setEditing(null);setLinkDrafts([{label:"",url:""}]);return;
+   }catch(error){flash(error instanceof Error?error.message:"บันทึกประกาศไม่สำเร็จ");return}
+  }
+  if(editing!==null){setAnnouncements(xs=>xs.map(a=>a.id===editing?{...a,...draft,eventLink:links[0]?.url||"",links,status:"draft",postAt:undefined,approvedBy:undefined,reviewLog:appendLog(a,"แก้ไขเนื้อหาแล้ว ส่งกลับเป็นฉบับร่างเพื่อเริ่มตรวจใหม่")}:a));flash("บันทึกแล้ว และส่งกลับเป็นฉบับร่างเพื่อรีเช็คใหม่")}
+  else{setAnnouncements(xs=>[{...draft,eventLink:links[0]?.url||"",links,id:Date.now(),status:"draft",date:new Date().toISOString().slice(0,10),views:0},...xs]);flash("เพิ่มประกาศฉบับร่างแล้ว")}
   setShowForm(false);
- };
- const checklistComplete=(a:Announcement)=>{const c=a.checklist;if(!a.targetCohorts?.length||!(a.channels||[]).length||!c||!c.audience||!c.content||!c.reviewer||!c.channels||!c.action)return false;const external=(a.channels||[]).some(x=>x!=="เว็บไซต์");return !external||!!(a.shareChecklist?.relevance&&a.shareChecklist?.audience&&a.shareChecklist?.wording)};
+ }; const checklistComplete=(a:Announcement)=>{const c=a.checklist;if(!a.targetCohorts?.length||!(a.channels||[]).length||!c||!c.audience||!c.content||!c.reviewer||!c.channels||!c.action)return false;const external=(a.channels||[]).some(x=>x!=="เว็บไซต์");return !external||!!(a.shareChecklist?.relevance&&a.shareChecklist?.audience&&a.shareChecklist?.wording)};
  const appendLog=(a:Announcement,message:string)=>[...(a.reviewLog||[]),`${new Date().toLocaleString('th-TH')} · ${message}`];
- const queueAnnouncement=(id:number)=>{if(!canEditAnnouncements){flash("เฉพาะเลขาหลักสูตรหรือผู้ดูแลสูงสุดเท่านั้นที่ส่งข่าวเข้ารอได้");return}const item=announcements.find(a=>a.id===id);if(item?.urgency==="urgent"){flash("ข่าวด่วนควรผ่านเช็กลิสต์แล้วเลือกอนุมัติทันที ไม่ต้องรอ 10 นาที");return}if(!item||!checklistComplete(item)){flash("ยังโพสต์ไม่ได้: กรุณาตรวจเช็กลิสต์และกลุ่มเป้าหมายให้ครบก่อน");return}const postAt=Date.now()+10*60*1000;setAnnouncements(xs=>xs.map(a=>a.id===id?{...a,status:"pending",postAt,reviewLog:appendLog(a,"ส่งเข้ารอรีเช็ค 10 นาที")}:a));flash("เข้าสู่ช่วงรีเช็ค 10 นาทีแล้ว")};
- const approveNow=(id:number)=>{if(!canReviewAnnouncements){flash("เฉพาะผู้ตรวจสอบหรือผู้ดูแลสูงสุดเท่านั้นที่อนุมัติได้");return}const item=announcements.find(a=>a.id===id);if(!item||!checklistComplete(item)){flash("ยังอนุมัติไม่ได้: กรุณาตรวจเช็กลิสต์ให้ครบก่อน");return}setAnnouncements(xs=>xs.map(a=>a.id===id?{...a,status:"published",postAt:undefined,approvedBy:currentUser?.name||"ผู้ตรวจสอบ",reviewLog:appendLog(a,`${currentUser?.name||"ผู้ตรวจสอบ"} อนุมัติและเผยแพร่ทันที`)}:a));flash("อนุมัติและเผยแพร่ทันทีแล้ว")};
- const suspendAnnouncement=(id:number)=>{if(!canReviewAnnouncements){flash("เฉพาะผู้ตรวจสอบหรือผู้ดูแลสูงสุดเท่านั้นที่ระงับได้");return}setAnnouncements(xs=>xs.map(a=>a.id===id?{...a,status:"draft",postAt:undefined,reviewLog:appendLog(a,"ระงับการโพสต์และส่งกลับเป็นฉบับร่าง")}:a));flash("ระงับแล้ว ข่าวกลับเป็นฉบับร่าง")};
+ const queueAnnouncement=async(id:string|number)=>{
+  if(!canEditAnnouncements){flash("เฉพาะเลขาหลักสูตรหรือผู้ดูแลสูงสุดเท่านั้นที่ส่งข่าวเข้ารอได้");return}
+  const item=announcements.find(a=>a.id===id);
+  if(item?.urgency==="urgent"){flash("ข่าวด่วนควรผ่านเช็กลิสต์แล้วเลือกอนุมัติทันที ไม่ต้องรอ 10 นาที");return}
+  if(dataMode==="database"){
+   try{
+    const response=await fetch("/api/announcements/"+encodeURIComponent(String(id))+"/action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"queue"})});
+    const payload=await response.json();if(!response.ok)throw new Error(payload.error||"ส่งเข้าคิวไม่สำเร็จ");
+    setAnnouncements(await fetchDatabaseAnnouncements());flash("ส่งประกาศเข้าคิวรอ 10 นาทีฝั่งเซิร์ฟเวอร์แล้ว");return;
+   }catch(error){flash(error instanceof Error?error.message:"ส่งเข้าคิวไม่สำเร็จ");return}
+  }
+  if(!item||!checklistComplete(item)){flash("ยังโพสต์ไม่ได้: กรุณาตรวจเช็กลิสต์และกลุ่มเป้าหมายให้ครบก่อน");return}
+  const postAt=Date.now()+10*60*1000;
+  setAnnouncements(xs=>xs.map(a=>a.id===id?{...a,status:"pending",postAt,reviewLog:appendLog(a,"ส่งเข้ารอรีเช็ค 10 นาที")}:a));
+  flash("เข้าสู่ช่วงรีเช็ค 10 นาทีแล้ว (โหมดตัวอย่าง)");
+ };
+ const approveNow=async(id:string|number)=>{
+  if(!canReviewAnnouncements){flash("กรุณาเข้าสู่ระบบบุคลากรก่อนอนุมัติ");return}
+  if(dataMode==="database"){
+   try{
+    const response=await fetch("/api/announcements/"+encodeURIComponent(String(id))+"/action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"publish_now"})});
+    const payload=await response.json();if(!response.ok)throw new Error(payload.error||"อนุมัติไม่สำเร็จ");
+    setAnnouncements(await fetchDatabaseAnnouncements());flash("อนุมัติและเผยแพร่จากฐานข้อมูลแล้ว");return;
+   }catch(error){flash(error instanceof Error?error.message:"อนุมัติไม่สำเร็จ");return}
+  }
+  const item=announcements.find(a=>a.id===id);
+  if(!item||!checklistComplete(item)){flash("ยังอนุมัติไม่ได้: กรุณาตรวจเช็กลิสต์ให้ครบก่อน");return}
+  setAnnouncements(xs=>xs.map(a=>a.id===id?{...a,status:"published",postAt:undefined,approvedBy:currentUser?.name||"ผู้อนุมัติ",reviewLog:appendLog(a, currentUser?.name+" อนุมัติและเผยแพร่ทันที")}:a));
+  flash("อนุมัติและเผยแพร่ทันทีแล้ว");
+ };
+ const suspendAnnouncement=async(id:string|number)=>{
+  if(!canReviewAnnouncements){flash("กรุณาเข้าสู่ระบบบุคลากรก่อนระงับ");return}
+  if(dataMode==="database"){
+   try{
+    const response=await fetch("/api/announcements/"+encodeURIComponent(String(id))+"/action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"suspend"})});
+    const payload=await response.json();if(!response.ok)throw new Error(payload.error||"ระงับประกาศไม่สำเร็จ");
+    setAnnouncements(await fetchDatabaseAnnouncements());flash("ระงับประกาศแล้ว กลับเป็นฉบับร่าง");return;
+   }catch(error){flash(error instanceof Error?error.message:"ระงับประกาศไม่สำเร็จ");return}
+  }
+  setAnnouncements(xs=>xs.map(a=>a.id===id?{...a,status:"draft",postAt:undefined,reviewLog:appendLog(a,"ระงับการโพสต์และส่งกลับเป็นฉบับร่าง")}:a));
+  flash("ระงับแล้ว ข่าวกลับเป็นฉบับร่าง");
+ };
+ const submitReview=async()=>{
+  if(reviewing===null)return;
+  const values=Object.values(reviewChecks);
+  if(values.some(value=>!value)){flash("กรุณาตรวจให้ครบทั้ง 4 ข้อ");return}
+  try{
+   const response=await fetch("/api/announcements/"+encodeURIComponent(String(reviewing))+"/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(reviewChecks)});
+   const payload=await response.json();if(!response.ok)throw new Error(payload.error||"บันทึกผลตรวจทานไม่สำเร็จ");
+   setReviewing(null);setReviewChecks({cohortsChecked:false,dateTimeLinksChecked:false,reviewerPassed:false,channelsChecked:false});
+   if(dataMode==="database")setAnnouncements(await fetchDatabaseAnnouncements());
+   flash("บันทึกผลตรวจทานแล้ว ประกาศพร้อมเข้าสู่ขั้นตอนโพสต์");
+  }catch(error){flash(error instanceof Error?error.message:"บันทึกผลตรวจทานไม่สำเร็จ")}
+ };
  const setStatus=(id:number,status:Announcement["status"])=>{if(!canEditAnnouncements){flash("บัญชีนี้ไม่มีสิทธิ์เปลี่ยนสถานะประกาศ");return}setAnnouncements(xs=>xs.map(a=>a.id===id?{...a,status,postAt:undefined,reviewLog:appendLog(a,status==="draft"?"ย้ายกลับเป็นฉบับร่าง":"เปลี่ยนสถานะเป็นเผยแพร่")}:a));flash(status==="published"?"เผยแพร่ประกาศแล้ว":"ย้ายเป็นฉบับร่างแล้ว")};
  const toggleAnnouncement=(id:number,key:"pinned"|"comments")=>setAnnouncements(xs=>xs.map(a=>a.id===id?{...a,[key]:!a[key]}:a));
  const deleteAnnouncement=(id:number)=>{if(!isSuperAdmin){flash("เฉพาะผู้ดูแลระบบสูงสุดเท่านั้นที่ลบประกาศได้");return}if(confirm("ยืนยันลบประกาศนี้?"))setAnnouncements(xs=>xs.filter(a=>a.id!==id))};
