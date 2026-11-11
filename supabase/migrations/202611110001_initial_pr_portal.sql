@@ -965,8 +965,44 @@ create policy notification_outbox_read_staff on public.notification_outbox
 for select to authenticated
 using (public.current_app_role() in ('admin', 'reviewer', 'superadmin'));
 
+create or replace function public.claim_notification_outbox(p_limit integer default 50)
+returns table (
+  id uuid,
+  announcement_id uuid,
+  profile_id uuid,
+  recipient_email text,
+  attempts integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  with candidates as (
+    select o.id
+    from public.notification_outbox o
+    where o.status in ('pending','failed')
+      and o.next_attempt_at <= now()
+      and o.attempts < 6
+    order by o.created_at
+    for update skip locked
+    limit greatest(1, least(coalesce(p_limit,50),100))
+  )
+  update public.notification_outbox o
+  set status='processing',
+      attempts=o.attempts+1,
+      last_error=null
+  from candidates c
+  where o.id=c.id
+  returning o.id,o.announcement_id,o.profile_id,o.recipient_email,o.attempts;
+end;
+$$;
+
 -- Only the database scheduler should call this function.
 revoke all on function public.publish_due_announcements() from public, anon, authenticated;
+revoke all on function public.claim_notification_outbox(integer) from public, anon, authenticated;
+grant execute on function public.claim_notification_outbox(integer) to service_role;
 revoke all on function public.create_announcement(text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[], text, text, integer[]) from public, anon;
 revoke all on function public.update_announcement(uuid, text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[], text, text, integer[]) from public, anon;
 grant execute on function public.update_announcement(uuid, text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[], text, text, integer[]) to authenticated;
