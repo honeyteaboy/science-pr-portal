@@ -14,6 +14,10 @@ type CreateAnnouncementInput = {
   eventTime?: string | null;
   eventLocation?: string | null;
   channels?: string[];
+  department?: string;
+  actionLine?: string;
+  reminderDays?: number[];
+  imageUrl?: string | null;
 };
 
 async function getCurrentProfile(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) {
@@ -33,7 +37,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("announcements")
       .select(`
-        id,title,body,is_urgent,status,channels,deadline_at,event_date,event_time,event_location,
+        id,title,body,is_urgent,status,channels,deadline_at,event_date,event_time,event_location,department,action_line,reminder_days,image_url,view_count,
         created_at,updated_at,published_at,scheduled_publish_at,created_by,pinned,comments_enabled,
         topic:topics(id,slug,name),
         targets:announcement_cohorts(cohort:cohorts(id,code,label)),
@@ -81,6 +85,9 @@ export async function POST(request: NextRequest) {
       p_event_time: input.eventTime || null,
       p_event_location: input.eventLocation || null,
       p_channels: input.channels?.length ? input.channels : ["website"],
+      p_department: input.department || "ประชาสัมพันธ์กลาง",
+      p_action_line: input.actionLine || null,
+      p_reminder_days: input.reminderDays?.length ? input.reminderDays : [14, 7, 3],
     });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
