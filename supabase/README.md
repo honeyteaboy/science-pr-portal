@@ -50,7 +50,7 @@ The public announcement homepage and published announcement detail pages can be 
 
 ## 5) Assign trusted staff roles
 
-Every new email/password registration or Google sign-in is assigned the `student` role by default. A trusted administrator must verify staff identity and promote the profile in Supabase SQL Editor. Example:
+Every self-service email/password registration or Google sign-in is assigned the `student` role by default. To create an email/password staff account, a trusted operator should first create the user in Supabase Dashboard → Authentication → Users → Add user, set a temporary password, and require the staff member to change it through the approved account process. After the profile row exists, verify the person's institutional identity and promote the profile in Supabase SQL Editor. Example:
 
 ```sql
 update public.profiles
