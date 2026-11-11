@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 type Tab = "overview" | "announcements" | "students" | "admins" | "departments" | "calendar" | "analytics" | "settings";
-type Announcement = {id:number;title:string;category:string;department:string;body:string;status:"published"|"draft"|"pending";pinned:boolean;comments:boolean;date:string;eventDate:string;views:number;image?:string;targetCohorts?:string[];urgency?:"normal"|"urgent";actionLine?:string;eventTime?:string;eventLocation?:string;eventLink?:string;channels?:string[];reminderDays?:number[];checklist?:{audience:boolean;content:boolean;reviewer:boolean;channels:boolean;action:boolean};shareChecklist?:{relevance:boolean;audience:boolean;wording:boolean};postAt?:number;reviewLog?:string[];approvedBy?:string};
+type Announcement = {id:string|number;title:string;category:string;department:string;body:string;status:"published"|"draft"|"pending";pinned:boolean;comments:boolean;date:string;eventDate:string;views:number;image?:string;targetCohorts?:string[];urgency?:"normal"|"urgent";actionLine?:string;eventTime?:string;eventLocation?:string;eventLink?:string;links?:{id?:string;label:string;url:string;sort_order?:number}[];channels?:string[];reminderDays?:number[];checklist?:{audience:boolean;content:boolean;reviewer:boolean;channels:boolean;action:boolean};shareChecklist?:{relevance:boolean;audience:boolean;wording:boolean};postAt?:number;reviewLog?:string[];approvedBy?:string};
 type Student = {id:number;studentCode:string;name:string;department:string;year:number;status:"active"|"inactive"};
 type Admin = {id:string|number;username:string;name:string;role:"superadmin"|"editor"|"reviewer"|"viewer"};
 type AdminSession = {id:number;username:string;name:string;role:"superadmin"|"editor"|"reviewer"|"viewer"};
@@ -44,6 +44,32 @@ const tabs:{id:Tab;label:string;icon:ReactNode}[]=[
 ];
 
 function readStore<T>(key:string,fallback:T):T { try { const v=localStorage.getItem(key); return v?JSON.parse(v) as T:fallback; } catch { return fallback; } }
+function mapDatabaseAnnouncement(row:any):Announcement {
+ const created=row.published_at||row.created_at||new Date().toISOString();
+ const latestReview=[...(row.reviews||[])].sort((a:any,b:any)=>String(b.created_at).localeCompare(String(a.created_at)))[0];
+ const targets=(row.targets||[]).map((x:any)=>x.cohort?.code).filter(Boolean);
+ const links=(row.links||[]).slice().sort((a:any,b:any)=>a.sort_order-b.sort_order);
+ return {
+  id:row.id,title:row.title,category:row.topic?.name||"ประกาศ",department:row.department||"ประชาสัมพันธ์กลาง",
+  body:row.body||"",status:row.status,pinned:Boolean(row.pinned),comments:Boolean(row.comments_enabled),
+  date:String(created).slice(0,10),eventDate:row.event_date||"",views:Number(row.view_count||0),
+  targetCohorts:targets,urgency:row.is_urgent?"urgent":"normal",actionLine:row.action_line||"",
+  eventTime:row.event_time||"",eventLocation:row.event_location||"",eventLink:links[0]?.url||"",
+  links,channels:row.channels||[],reminderDays:row.reminder_days||[14,7,3],
+  image:row.image_url||undefined,postAt:row.scheduled_publish_at?new Date(row.scheduled_publish_at).getTime():undefined,
+  checklist:latestReview?{
+   audience:Boolean(latestReview.cohorts_checked),content:Boolean(latestReview.date_time_links_checked),
+   reviewer:Boolean(latestReview.reviewer_passed),channels:Boolean(latestReview.channels_checked),action:true
+  }:undefined,
+  reviewLog:(row.reviews||[]).map((r:any)=>new Date(r.created_at).toLocaleString("th-TH")+" · บันทึกผลตรวจทาน"),
+ };
+}
+async function fetchDatabaseAnnouncements():Promise<Announcement[]> {
+ const response=await fetch("/api/announcements",{cache:"no-store"});
+ const payload=await response.json();
+ if(!response.ok)throw new Error(payload.error||"โหลดประกาศจากฐานข้อมูลไม่สำเร็จ");
+ return (payload.data||[]).map(mapDatabaseAnnouncement);
+}
 function Stat({label,value,sub,icon}:{label:string;value:string;sub:string;icon:ReactNode}) { return <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><span className="text-sm font-semibold text-slate-500">{label}</span><span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-ocean-700">{icon}</span></div><p className="mt-4 text-3xl font-black tracking-tight">{value}</p><p className="mt-1 text-xs text-slate-400">{sub}</p></div>; }
 
 export default function AdminPage(){
@@ -57,7 +83,7 @@ export default function AdminPage(){
  const [departments,setDepartments]=useState<Department[]>(seedDepartments);
  const [query,setQuery]=useState("");
  const [showForm,setShowForm]=useState(false);
- const [editing,setEditing]=useState<number|null>(null);
+ const [editing,setEditing]=useState<string|number|null>(null);
  const [draft,setDraft]=useState({title:"",category:"ประกาศ",department:"ประชาสัมพันธ์กลาง",body:"",eventDate:"",eventTime:"",eventLocation:"",eventLink:"",pinned:false,comments:false,image:"",targetCohorts:["all"],urgency:"normal" as "normal"|"urgent",actionLine:"",channels:["เว็บไซต์"],reminderDays:[14,7,3],checklist:{audience:false,content:false,reviewer:false,channels:false,action:false},shareChecklist:{relevance:false,audience:false,wording:false}});
  const [studentDraft,setStudentDraft]=useState({studentCode:"",name:"",department:"วิทยาการคอมพิวเตอร์",year:1});
  const [adminDraft,setAdminDraft]=useState({username:"",name:"",password:"",role:"editor" as Admin["role"]});
@@ -65,33 +91,83 @@ export default function AdminPage(){
  const [notice,setNotice]=useState("");
  const [loaded,setLoaded]=useState(false);
  const [clock,setClock]=useState(Date.now());
+ const [dataMode,setDataMode]=useState<"demo"|"database">("demo");
+ const [dbTopics,setDbTopics]=useState<{id:string;slug:string;name:string}[]>([]);
+ const [dbCohorts,setDbCohorts]=useState<{id:string;code:string;label:string}[]>([]);
+ const [reviewing,setReviewing]=useState<string|number|null>(null);
+ const [reviewChecks,setReviewChecks]=useState({cohortsChecked:false,dateTimeLinksChecked:false,reviewerPassed:false,channelsChecked:false});
 
  useEffect(()=>{
-  setAnnouncements(readStore("science-admin-announcements",seedAnnouncements));
   setStudents(readStore("science-admin-students",seedStudents));
   setDepartments(readStore("science-admin-departments",seedDepartments));
-  setLoaded(true);
-  const verifySession=async()=>{
-   if(!isSupabaseConfigured()){setAuthReady(true);return;}
+  const load=async()=>{
+   if(!isSupabaseConfigured()){
+    setAnnouncements(readStore("science-admin-announcements",seedAnnouncements));
+    setLoaded(true);setAuthReady(true);return;
+   }
    try{
     const supabase=createClient();
     const {data:{user},error:userError}=await supabase.auth.getUser();
-    if(userError||!user){setAuthReady(true);return;}
+    if(userError||!user){
+     setAnnouncements(readStore("science-admin-announcements",seedAnnouncements));
+     setLoaded(true);setAuthReady(true);return;
+    }
     const {data:profile,error:profileError}=await supabase.from("profiles").select("email,full_name,role,is_active").eq("id",user.id).single();
-    if(profileError||!profile||!profile.is_active||profile.role==="student"){setAuthReady(true);return;}
+    if(profileError||!profile||!profile.is_active||profile.role==="student"){
+     setAnnouncements(readStore("science-admin-announcements",seedAnnouncements));
+     setLoaded(true);setAuthReady(true);return;
+    }
     const mappedRole=profile.role==="superadmin"?"superadmin":profile.role==="admin"?"editor":profile.role==="reviewer"?"reviewer":"viewer";
     setCurrentUser({id:-1,username:profile.email||user.email||"",name:profile.full_name||user.email||"บุคลากร",role:mappedRole});
-    const {data:staffRows}=await supabase.from("profiles").select("id,email,full_name,role").in("role",["admin","reviewer","superadmin"]);
+    const [{data:staffRows},{data:topicRows},{data:cohortRows}]=await Promise.all([
+      supabase.from("profiles").select("id,email,full_name,role").in("role",["admin","reviewer","superadmin"]),
+      supabase.from("topics").select("id,slug,name").eq("is_active",true).order("sort_order"),
+      supabase.from("cohorts").select("id,code,label").eq("is_active",true).order("code"),
+    ]);
     setAdmins((staffRows||[]).map((item:{id:string;email:string|null;full_name:string|null;role:string})=>({id:item.id,username:item.email||"",name:item.full_name||item.email||"บุคลากร",role:item.role==="admin"?"editor":item.role as Admin["role"]})));
-   }catch(error){console.error("Admin authentication check failed",error);}
-   finally{setAuthReady(true);}
+    setDbTopics(topicRows||[]);setDbCohorts(cohortRows||[]);
+    try{
+     const rows=await fetchDatabaseAnnouncements();
+     setAnnouncements(rows);setDataMode("database");
+    }catch(error){
+     console.error("Announcement database load failed",error);
+     setAnnouncements(readStore("science-admin-announcements",seedAnnouncements));
+     setDataMode("demo");
+     setNotice("เชื่อมบัญชีแล้ว แต่ยังอ่านตารางประกาศไม่ได้ ตรวจว่าได้รัน Supabase migration แล้ว");
+    }
+   }catch(error){
+    console.error("Admin authentication check failed",error);
+    setAnnouncements(readStore("science-admin-announcements",seedAnnouncements));
+    setDataMode("demo");
+   }finally{setLoaded(true);setAuthReady(true);}
   };
-  void verifySession();
+  void load();
  },[]);
- useEffect(()=>{if(!loaded)return;localStorage.setItem("science-admin-announcements",JSON.stringify(announcements));},[announcements,loaded]);
+ useEffect(()=>{if(!loaded||dataMode!=="demo")return;localStorage.setItem("science-admin-announcements",JSON.stringify(announcements));},[announcements,loaded,dataMode]);
  useEffect(()=>{if(!loaded)return;localStorage.setItem("science-admin-students",JSON.stringify(students));},[students,loaded]);
  useEffect(()=>{if(!loaded)return;localStorage.setItem("science-admin-departments",JSON.stringify(departments));},[departments,loaded]);
- useEffect(()=>{const tick=()=>{const current=Date.now();setClock(current);setAnnouncements(xs=>{let changed=false;const next=xs.map(a=>{if(a.status==="pending"&&a.postAt&&a.postAt<=current){changed=true;return {...a,status:"published" as const,postAt:undefined,reviewLog:[...(a.reviewLog||[]),`${new Date(current).toLocaleString('th-TH')} · ครบ 10 นาที ระบบเผยแพร่อัตโนมัติ`]};}return a;});return changed?next:xs;});};tick();const timer=window.setInterval(tick,1000);return()=>window.clearInterval(timer);},[]);
+ useEffect(()=>{
+  const tick=()=>{
+   const current=Date.now();setClock(current);
+   if(dataMode==="database"){
+    void fetchDatabaseAnnouncements().then(setAnnouncements).catch(error=>console.error("Announcement refresh failed",error));
+    return;
+   }
+   setAnnouncements(xs=>{
+    let changed=false;
+    const next=xs.map(a=>{
+     if(a.status==="pending"&&a.postAt&&a.postAt<=current){
+      changed=true;
+      return {...a,status:"published" as const,postAt:undefined,reviewLog:[...(a.reviewLog||[]),new Date(current).toLocaleString("th-TH")+" · ครบ 10 นาที ระบบต้นแบบเผยแพร่อัตโนมัติ"]};
+     }
+     return a;
+    });
+    return changed?next:xs;
+   });
+  };
+  tick();const timer=window.setInterval(tick,dataMode==="database"?15000:1000);
+  return()=>window.clearInterval(timer);
+ },[dataMode]);
 
  const published=announcements.filter(a=>a.status==="published").length;
  const totalViews=announcements.reduce((sum,a)=>sum+a.views,0);
