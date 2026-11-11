@@ -66,7 +66,7 @@ export default function LoginPage() {
       setError("ระบบยังไม่ได้เชื่อม Supabase กรุณาตั้งค่าระบบก่อน");
       return;
     }
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError("กรุณากรอกอีเมลให้ถูกต้อง");
       return;
     }
