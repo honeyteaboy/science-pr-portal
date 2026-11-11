@@ -97,6 +97,7 @@ alter table public.announcements
   add column if not exists comments_enabled boolean not null default false;
 
 alter table public.announcements
+  add column if not exists content_updated_at timestamptz not null default now(),
   add column if not exists department text not null default 'ประชาสัมพันธ์กลาง',
   add column if not exists action_line text,
   add column if not exists reminder_days integer[] not null default array[14,7,3]::integer[],
@@ -429,7 +430,7 @@ begin
     department=coalesce(nullif(trim(p_department),''),'ประชาสัมพันธ์กลาง'),
     action_line=nullif(trim(p_action_line),''),
     reminder_days=coalesce(p_reminder_days,array[14,7,3]::integer[]),
-    scheduled_publish_at=null, updated_at=now()
+    scheduled_publish_at=null, content_updated_at=now(), updated_at=now()
   where id=p_announcement_id;
 
   delete from public.announcement_cohorts where announcement_id=p_announcement_id;
@@ -517,7 +518,7 @@ begin
     select 1 from public.announcement_reviews r
     join public.profiles p on p.id = r.reviewer_id
     where r.announcement_id = p_announcement_id
-      and r.created_at >= v_announcement.updated_at
+      and r.created_at >= v_announcement.content_updated_at
       and r.cohorts_checked
       and r.date_time_links_checked
       and r.reviewer_passed
@@ -636,7 +637,7 @@ begin
         from public.announcement_reviews r
         join public.profiles p on p.id = r.reviewer_id
         where r.announcement_id = a.id
-          and r.created_at >= a.updated_at
+          and r.created_at >= a.content_updated_at
           and r.cohorts_checked
           and r.date_time_links_checked
           and r.reviewer_passed
