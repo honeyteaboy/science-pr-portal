@@ -3,15 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bell, CalendarDays, ChevronLeft, ChevronRight, Eye, Search, ShieldCheck, TrendingUp, Users, UserCircle } from "lucide-react";
 
-type Notice = { id: number; title: string; category: string; department: string; date: string; eventDate?: string; views: number; pinned?: boolean; tone: string; excerpt: string; targetCohorts?:string[]; urgency?:"normal"|"urgent"; actionLine?:string; reminderDays?:number[]; eventTime?:string; eventLocation?:string; eventLink?:string };
-type StoredNotice = {id:number;title:string;category:string;department:string;body:string;status:"published"|"draft"|"pending";pinned:boolean;date:string;eventDate:string;views:number;targetCohorts?:string[];urgency?:"normal"|"urgent";actionLine?:string;reminderDays?:number[];eventTime?:string;eventLocation?:string;eventLink?:string};
+type Notice = { id: string | number; title: string; category: string; department: string; date: string; eventDate?: string; views: number; pinned?: boolean; tone: string; excerpt: string; targetCohorts?:string[]; urgency?:"normal"|"urgent"; actionLine?:string; reminderDays?:number[]; eventTime?:string; eventLocation?:string; eventLink?:string };
+type StoredNotice = {id:string|number;title:string;category:string;department:string;body:string;status:"published"|"draft"|"pending";pinned:boolean;date:string;eventDate:string;views:number;targetCohorts?:string[];urgency?:"normal"|"urgent";actionLine?:string;reminderDays?:number[];eventTime?:string;eventLocation?:string;eventLink?:string};
 const seedNotices: Notice[] = [
   { id: 1, title: "เปิดรับสมัครทุนการศึกษาสำหรับนักศึกษาคณะวิทยาศาสตร์", category: "ทุนการศึกษา", department: "ประชาสัมพันธ์กลาง", date: "2026-11-10", views: 1284, pinned: true, tone: "blue", excerpt: "แจ้งกำหนดการและรายละเอียดการยื่นขอรับทุนการศึกษาประจำปีการศึกษา" },
   { id: 2, title: "กำหนดการลงทะเบียนและเพิ่ม-ถอนรายวิชา", category: "การเรียน", department: "งานบริการการศึกษา", date: "2026-11-09", eventDate: "2026-11-20", views: 986, tone: "mint", excerpt: "ตรวจสอบช่วงเวลาลงทะเบียน เงื่อนไข และกำหนดการสำคัญของภาคการศึกษา" },
   { id: 3, title: "กิจกรรม Science Open House ประจำปี", category: "กิจกรรม", department: "สโมสรนักศึกษา", date: "2026-11-08", eventDate: "2026-12-05", views: 742, tone: "gold", excerpt: "ชวนนักศึกษาและผู้สนใจร่วมกิจกรรมเปิดบ้านวิทยาศาสตร์" },
   { id: 4, title: "ประกาศแนวปฏิบัติการใช้ห้องปฏิบัติการ", category: "ประกาศ", department: "สำนักงานคณะ", date: "2026-11-07", views: 531, tone: "violet", excerpt: "แนวทางการเข้าใช้พื้นที่และข้อควรปฏิบัติเพื่อความปลอดภัย" }
 ];
-const categories = ["ทั้งหมด", "ประกาศ", "การเรียน", "ทุนการศึกษา", "กิจกรรม"];
+const categories = ["ทั้งหมด", "ประกาศทั่วไป", "ประกาศ", "การเรียน", "ทุนการศึกษา", "กยศ.", "การยื่นเรื่องจบ", "กิจกรรม"];
 const weekdays = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
 const dateKey = (date: Date) => [date.getFullYear(), String(date.getMonth()+1).padStart(2,"0"), String(date.getDate()).padStart(2,"0")].join("-");
 const prettyDate = (value: string) => new Date(value+"T00:00:00").toLocaleDateString("th-TH",{day:"numeric",month:"long",year:"numeric"});
@@ -26,22 +26,76 @@ export default function HomePage() {
   const [targetCohort, setTargetCohort] = useState("all");
 
   useEffect(() => {
-    const syncAnnouncements = () => {
+    let active = true;
+    const mapDatabaseNotice = (row: any): Notice => {
+      const publishedDate = row.published_at || row.created_at;
+      const date = publishedDate ? new Date(publishedDate).toISOString().slice(0, 10) : dateKey(new Date());
+      const cohorts = (row.targets || [])
+        .map((target: any) => target.cohort?.code)
+        .filter((code: unknown): code is string => typeof code === "string");
+      const links = row.links || [];
+      return {
+        id: row.id,
+        title: row.title,
+        category: row.topic?.name || "ประกาศ",
+        department: row.department || "ประชาสัมพันธ์กลาง",
+        date,
+        eventDate: row.event_date || "",
+        views: Number(row.view_count || 0),
+        pinned: Boolean(row.pinned),
+        tone: "blue",
+        excerpt: row.action_line || row.body || "",
+        targetCohorts: cohorts.length ? cohorts : [],
+        urgency: row.is_urgent ? "urgent" : "normal",
+        actionLine: row.action_line || "",
+        reminderDays: row.reminder_days || [],
+        eventTime: row.event_time || "",
+        eventLocation: row.event_location || "",
+        eventLink: links[0]?.url || "",
+      };
+    };
+
+    const syncAnnouncements = async () => {
+      try {
+        const response = await fetch("/api/announcements", { cache: "no-store" });
+        if (!response.ok) throw new Error("Database is not ready");
+        const payload = await response.json();
+        if (active && Array.isArray(payload.data)) {
+          const published = payload.data
+            .filter((item: any) => item.status === "published")
+            .map(mapDatabaseNotice);
+          setNotices(published);
+          return;
+        }
+      } catch {
+        // Keep the existing demo data visible until Supabase is configured and migrated.
+      }
+
       try {
         const raw = localStorage.getItem("science-admin-announcements");
         if (!raw) return;
         const saved = JSON.parse(raw) as StoredNotice[];
-        const mapped = saved.filter(a=>a.status==="published").map((a):Notice=>({
-          id:a.id,title:a.title,category:a.category,department:a.department,date:a.date,
-          eventDate:a.eventDate || "",views:a.views || 0,pinned:a.pinned,tone:"blue",excerpt:a.body || "",targetCohorts:a.targetCohorts||["all"],urgency:a.urgency||"normal",actionLine:a.actionLine||"",reminderDays:a.reminderDays||[],eventTime:a.eventTime||"",eventLocation:a.eventLocation||"",eventLink:a.eventLink||""
+        const mapped = saved.filter(a => a.status === "published").map((a): Notice => ({
+          id: a.id, title: a.title, category: a.category, department: a.department, date: a.date,
+          eventDate: a.eventDate || "", views: a.views || 0, pinned: a.pinned, tone: "blue",
+          excerpt: a.body || "", targetCohorts: a.targetCohorts || ["all"], urgency: a.urgency || "normal",
+          actionLine: a.actionLine || "", reminderDays: a.reminderDays || [], eventTime: a.eventTime || "",
+          eventLocation: a.eventLocation || "", eventLink: a.eventLink || ""
         }));
-        setNotices(mapped);
-      } catch { /* Keep demo announcements if browser data is unavailable. */ }
+        if (active) setNotices(mapped);
+      } catch {
+        // Keep the starter notices if both database and local demo storage are unavailable.
+      }
     };
-    syncAnnouncements();
-    window.addEventListener("storage",syncAnnouncements);
-    window.addEventListener("focus",syncAnnouncements);
-    return () => {window.removeEventListener("storage",syncAnnouncements);window.removeEventListener("focus",syncAnnouncements);};
+
+    void syncAnnouncements();
+    window.addEventListener("focus", syncAnnouncements);
+    window.addEventListener("storage", syncAnnouncements);
+    return () => {
+      active = false;
+      window.removeEventListener("storage", syncAnnouncements);
+      window.removeEventListener("focus", syncAnnouncements);
+    };
   }, []);
 
   const filtered = useMemo(() => notices.filter(n => (category === "ทั้งหมด" || n.category === category) && (n.title + n.excerpt + n.department).toLowerCase().includes(query.toLowerCase())), [notices,query,category]);
@@ -63,7 +117,7 @@ export default function HomePage() {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
         <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-ocean-600 text-white"><span className="text-lg font-black">S</span></div><div><p className="font-bold tracking-tight">SCIENCE <span className="text-ocean-600">PR PORTAL</span></p><p className="text-xs text-slate-500">ระบบประชาสัมพันธ์คณะวิทยาศาสตร์</p></div></div>
         <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex"><a href="#news" className="hover:text-ocean-600">ข่าวประชาสัมพันธ์</a><a href="#calendar" className="hover:text-ocean-600">ปฏิทินกิจกรรม</a><a href="#popular" className="hover:text-ocean-600">ยอดนิยม</a></nav>
-        <div className="flex items-center gap-2"><a href="/login" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:border-ocean-400">เข้าสู่ระบบ</a><a href="/profile" className="hidden items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:border-ocean-400 sm:inline-flex"><UserCircle size={17}/> โปรไฟล์</a><a href="/admin" className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-ocean-600"><ShieldCheck size={16}/> แอดมิน</a></div>
+        <div className="flex items-center gap-2"><a href="/login" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:border-ocean-400">เข้าสู่ระบบ</a><a href="/student" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:border-ocean-400"><Users size={16}/> ฟีดนักศึกษา</a><a href="/profile" className="hidden items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:border-ocean-400 sm:inline-flex"><UserCircle size={17}/> โปรไฟล์</a><a href="/admin" className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-ocean-600"><ShieldCheck size={16}/> แอดมิน</a></div>
       </div>
     </header>
     <section className="relative overflow-hidden bg-gradient-to-br from-[#0c6078] via-[#087f9d] to-[#16a3b8] text-white">
@@ -98,7 +152,7 @@ export default function HomePage() {
       {filtered.length===0&&<div className="mt-8 rounded-3xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-500">ไม่พบข่าวที่ตรงกับการค้นหา</div>}
     </section>
     <section id="popular" className="bg-white py-14"><div className="mx-auto max-w-7xl px-5"><p className="text-sm font-bold uppercase tracking-[.2em] text-ocean-600">Trending now</p><h2 className="mt-2 text-2xl font-black">ข่าวที่มีผู้เข้าชมสูงสุด</h2><div className="mt-6 grid gap-3 md:grid-cols-4">{ranked.map((n,i)=><div key={n.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex items-center justify-between"><span className="text-2xl font-black text-ocean-600">0{i+1}</span><span className="text-xs text-slate-400">{n.views.toLocaleString()} views</span></div><p className="mt-4 text-sm font-semibold leading-6">{n.title}</p></div>)}</div></div></section>
-    <footer className="bg-slate-950 px-5 py-8 text-center text-sm text-slate-400">SCIENCE PR PORTAL · คณะวิทยาศาสตร์ <span className="mx-2">•</span> ระบบต้นแบบสำหรับพัฒนาต่อ</footer>
+    <footer className="bg-slate-950 px-5 py-8 text-center text-sm text-slate-400">SCIENCE PR PORTAL · คณะวิทยาศาสตร์</footer>
   </main>;
 }
 function Stat({icon,label,value}:{icon:React.ReactNode;label:string;value:string}) { return <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="grid h-11 w-11 place-items-center rounded-xl bg-ocean-50 text-ocean-600">{icon}</div><div className="min-w-0"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 truncate text-lg font-black">{value}</p></div></div>; }
