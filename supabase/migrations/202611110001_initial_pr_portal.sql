@@ -89,6 +89,13 @@ create table if not exists public.announcements (
         or (status <> 'pending' and scheduled_publish_at is null))
 );
 
+alter table public.announcements
+  add column if not exists event_date date,
+  add column if not exists event_time text,
+  add column if not exists event_location text,
+  add column if not exists pinned boolean not null default false,
+  add column if not exists comments_enabled boolean not null default false;
+
 create index if not exists announcements_status_schedule_idx
   on public.announcements (status, scheduled_publish_at);
 
@@ -274,6 +281,115 @@ drop trigger if exists announcements_audit_log on public.announcements;
 create trigger announcements_audit_log
   after insert or update on public.announcements
   for each row execute procedure public.log_announcement_change();
+
+create or replace function public.create_announcement(
+  p_title text,
+  p_body text,
+  p_topic_id uuid,
+  p_cohort_ids uuid[],
+  p_links jsonb default '[]'::jsonb,
+  p_is_urgent boolean default false,
+  p_deadline_at timestamptz default null,
+  p_event_date date default null,
+  p_event_time text default null,
+  p_event_location text default null,
+  p_channels text[] default array['website']::text[]
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role text;
+  v_id uuid;
+  v_link jsonb;
+begin
+  v_role := public.current_app_role();
+  if v_role not in ('admin', 'reviewer', 'superadmin') then
+    raise exception 'ไม่มีสิทธิ์สร้างประกาศ';
+  end if;
+  if nullif(trim(p_title), '') is null or nullif(trim(p_body), '') is null then
+    raise exception 'กรุณากรอกหัวข้อและรายละเอียดประกาศ';
+  end if;
+  if p_cohort_ids is null or cardinality(p_cohort_ids) = 0 then
+    raise exception 'กรุณาเลือกกลุ่มเป้าหมายอย่างน้อยหนึ่งรุ่น';
+  end if;
+  if exists (
+    select 1 from unnest(p_cohort_ids) c
+    where not exists (select 1 from public.cohorts co where co.id = c and co.is_active)
+  ) then
+    raise exception 'พบรุ่นนักศึกษาที่ไม่มีอยู่หรือปิดใช้งานแล้ว';
+  end if;
+  if jsonb_typeof(coalesce(p_links, '[]'::jsonb)) <> 'array' then
+    raise exception 'รูปแบบรายการลิงก์ไม่ถูกต้อง';
+  end if;
+  for v_link in select value from jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) loop
+    if nullif(trim(v_link ->> 'label'), '') is null
+       or coalesce(v_link ->> 'url', '') !~ '^https://' then
+      raise exception 'ลิงก์ทุกช่องต้องมีชื่อและ URL ที่ขึ้นต้นด้วย https://';
+    end if;
+  end loop;
+
+  insert into public.announcements (
+    title, body, topic_id, is_urgent, created_by, deadline_at,
+    event_date, event_time, event_location, channels
+  ) values (
+    trim(p_title), trim(p_body), p_topic_id, coalesce(p_is_urgent, false),
+    auth.uid(), p_deadline_at, p_event_date, nullif(trim(p_event_time), ''),
+    nullif(trim(p_event_location), ''), coalesce(p_channels, array['website']::text[])
+  )
+  returning id into v_id;
+
+  insert into public.announcement_cohorts (announcement_id, cohort_id)
+  select v_id, cohort_id from (select distinct unnest(p_cohort_ids) as cohort_id) selected;
+
+  for v_link in select value from jsonb_array_elements(coalesce(p_links, '[]'::jsonb)) loop
+    insert into public.announcement_links (announcement_id, label, url, sort_order)
+    values (v_id, trim(v_link ->> 'label'), trim(v_link ->> 'url'), coalesce((v_link ->> 'sort_order')::integer, 0));
+  end loop;
+
+  return v_id;
+end;
+$$;
+
+create or replace function public.submit_announcement_review(
+  p_announcement_id uuid,
+  p_cohorts_checked boolean,
+  p_date_time_links_checked boolean,
+  p_reviewer_passed boolean,
+  p_channels_checked boolean,
+  p_notes text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role text;
+  v_id uuid;
+begin
+  v_role := public.current_app_role();
+  if v_role not in ('reviewer', 'superadmin') then
+    raise exception 'เฉพาะผู้ตรวจสอบที่ได้รับสิทธิ์เท่านั้นที่บันทึกผลตรวจได้';
+  end if;
+  if not exists (select 1 from public.announcements where id = p_announcement_id and status = 'draft') then
+    raise exception 'ตรวจได้เฉพาะประกาศฉบับร่าง';
+  end if;
+
+  insert into public.announcement_reviews (
+    announcement_id, reviewer_id, cohorts_checked, date_time_links_checked,
+    reviewer_passed, channels_checked, notes
+  ) values (
+    p_announcement_id, auth.uid(), coalesce(p_cohorts_checked, false),
+    coalesce(p_date_time_links_checked, false), coalesce(p_reviewer_passed, false),
+    coalesce(p_channels_checked, false), p_notes
+  )
+  returning id into v_id;
+  return v_id;
+end;
+$$;
 
 create or replace function public.queue_announcement(p_announcement_id uuid)
 returns timestamptz
@@ -665,6 +781,10 @@ using (public.current_app_role() in ('admin', 'reviewer', 'superadmin'));
 
 -- Only the database scheduler should call this function.
 revoke all on function public.publish_due_announcements() from public, anon, authenticated;
+revoke all on function public.create_announcement(text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[]) from public, anon;
+revoke all on function public.submit_announcement_review(uuid, boolean, boolean, boolean, boolean, text) from public, anon;
+grant execute on function public.create_announcement(text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[]) to authenticated;
+grant execute on function public.submit_announcement_review(uuid, boolean, boolean, boolean, boolean, text) to authenticated;
 revoke all on function public.queue_announcement(uuid) from public, anon;
 revoke all on function public.publish_announcement_now(uuid) from public, anon;
 revoke all on function public.suspend_announcement(uuid) from public, anon;
@@ -678,11 +798,7 @@ begin
   if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
     execute 'create extension if not exists pg_cron';
     if to_regnamespace('cron') is not null then
-      perform cron.schedule(
-        'science-pr-publish-due-announcements',
-        '* * * * *',
-        'select public.publish_due_announcements();'
-      );
+      execute 'select cron.schedule(''science-pr-publish-due-announcements'', ''* * * * *'', ''select public.publish_due_announcements();'')';
     end if;
   end if;
 exception when others then
