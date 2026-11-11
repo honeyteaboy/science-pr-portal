@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Mail, ShieldCheck, GraduationCap, Info, LoaderCircle } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [kind, setKind] = useState<"student" | "staff">("student");
   const [message, setMessage] = useState("");
