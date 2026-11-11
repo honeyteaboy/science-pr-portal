@@ -10,6 +10,7 @@ type ScreenMode = "login" | "register";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -31,6 +32,14 @@ export default function LoginPage() {
   const signInWithPassword = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     clearFeedback();
+    if (kind === "staff" && !configured) {
+      const demoAccounts = [{ username: "systemadmin", password: "SciPR@2026Demo", name: "ผู้ดูแลระบบสูงสุด", role: "superadmin" }];
+      const account = demoAccounts.find((item) => item.username === username.trim() && item.password === password);
+      if (!account) { setError("ชื่อบัญชีหรือรหัสผ่านไม่ถูกต้อง"); return; }
+      localStorage.setItem("science-demo-admin-session", JSON.stringify({ id: 1, username: account.username, name: account.name, role: account.role }));
+      window.location.assign("/admin");
+      return;
+    }
     if (!configured) {
       setError("ระบบยังไม่ได้เชื่อม Supabase กรุณาตั้งค่าระบบก่อน");
       return;
@@ -233,9 +242,9 @@ export default function LoginPage() {
               <button type="submit" disabled={!configured || loading !== null}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-ocean-900 px-4 py-3.5 text-sm font-black text-white hover:bg-ocean-800 disabled:cursor-not-allowed disabled:opacity-50">
                 {loading === "email" ? <LoaderCircle className="animate-spin" size={17} /> : <LockKeyhole size={17} />}
-                เข้าสู่ระบบด้วยอีเมลและรหัสผ่าน
+                {kind === "staff" && !configured ? "เข้าสู่ระบบผู้ดูแล (Demo)" : "เข้าสู่ระบบด้วยอีเมลและรหัสผ่าน"}
               </button>
-              {kind === "staff" && (
+              {kind === "staff" && configured && (
                 <>
                   <div className="flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200"/><span>หรือ</span><span className="h-px flex-1 bg-slate-200"/></div>
                   <button type="button" onClick={signInWithGoogle} disabled={!configured || loading !== null}
@@ -252,7 +261,7 @@ export default function LoginPage() {
           {message && <p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm leading-6 text-emerald-800">{message}</p>}
           {error && <p role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-sm leading-6 text-rose-800">{error}</p>}
 
-          {!configured && (
+          {!configured && !(kind === "staff" && mode === "login") && (
             <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">
               <Info className="mb-1 inline" size={14} /> ต้องตั้งค่า NEXT_PUBLIC_SUPABASE_URL และ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ใน Vercel ก่อนเปิดใช้ระบบบัญชี
             </div>
@@ -262,7 +271,7 @@ export default function LoginPage() {
             <b>ความเป็นส่วนตัว:</b> ระบบใช้เฉพาะอีเมลสำหรับยืนยันบัญชีและส่งประกาศเมื่อคุณยินยอม ไม่อ่านกล่องจดหมาย Gmail และไม่ขอสิทธิ์เข้าถึงอีเมลอื่น
           </div>
         </section>
-        <p className="mt-5 text-center text-xs text-slate-400">Science PR Portal · Supabase Auth</p>
+        <p className="mt-5 text-center text-xs text-slate-400">Science PR Portal · {kind === "staff" && !configured ? "Demo Admin Login" : "Supabase Auth"}</p>
       </div>
     </main>
   );
