@@ -564,6 +564,98 @@ begin
 end;
 $$;
 
+create or replace function public.set_student_preferences(
+  p_topic_ids uuid[],
+  p_email_enabled boolean,
+  p_important_email_enabled boolean default true
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role text;
+  v_email text;
+begin
+  v_role := public.current_app_role();
+  if v_role <> 'student' then
+    raise exception 'การตั้งค่านี้ใช้ได้เฉพาะบัญชีนักศึกษา';
+  end if;
+  select email into v_email from public.profiles where id = auth.uid();
+  if coalesce(p_email_enabled, false) and not exists (
+    select 1 from public.email_consents
+    where profile_id = auth.uid()
+      and email = v_email
+      and consented
+      and withdrawn_at is null
+  ) then
+    raise exception 'ต้องยินยอมรับประกาศทางอีเมลก่อนเปิดการส่งอีเมล';
+  end if;
+  insert into public.student_preferences (
+    profile_id, topic_ids, email_enabled, important_email_enabled
+  ) values (
+    auth.uid(), coalesce(p_topic_ids, '{}'::uuid[]),
+    coalesce(p_email_enabled, false), coalesce(p_important_email_enabled, true)
+  )
+  on conflict (profile_id) do update
+    set topic_ids = excluded.topic_ids,
+        email_enabled = excluded.email_enabled,
+        important_email_enabled = excluded.important_email_enabled,
+        updated_at = now();
+end;
+$$;
+
+create or replace function public.record_student_email_consent(
+  p_consented boolean,
+  p_consent_text_version text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role text;
+  v_email text;
+  v_id uuid;
+begin
+  v_role := public.current_app_role();
+  if v_role <> 'student' then
+    raise exception 'การยินยอมนี้ใช้ได้เฉพาะบัญชีนักศึกษา';
+  end if;
+  select email into v_email from public.profiles where id = auth.uid();
+  if nullif(v_email, '') is null then
+    raise exception 'บัญชีนี้ยังไม่มีอีเมลที่ยืนยันแล้ว';
+  end if;
+  if coalesce(p_consented, false) then
+    insert into public.email_consents (
+      profile_id, email, consented, consent_text_version, source
+    ) values (
+      auth.uid(), v_email, true, coalesce(nullif(p_consent_text_version, ''), 'v1'), 'student-settings'
+    ) returning id into v_id;
+  else
+    update public.email_consents
+    set withdrawn_at = now()
+    where profile_id = auth.uid()
+      and consented
+      and withdrawn_at is null;
+
+    insert into public.email_consents (
+      profile_id, email, consented, consent_text_version, source, withdrawn_at
+    ) values (
+      auth.uid(), v_email, false, coalesce(nullif(p_consent_text_version, ''), 'v1'),
+      'student-settings', now()
+    ) returning id into v_id;
+
+    update public.student_preferences
+    set email_enabled = false, updated_at = now()
+    where profile_id = auth.uid();
+  end if;
+  return v_id;
+end;
+$$;
+
 create or replace function public.enqueue_announcement_email_notifications()
 returns trigger
 language plpgsql
@@ -783,6 +875,10 @@ using (public.current_app_role() in ('admin', 'reviewer', 'superadmin'));
 revoke all on function public.publish_due_announcements() from public, anon, authenticated;
 revoke all on function public.create_announcement(text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[]) from public, anon;
 revoke all on function public.submit_announcement_review(uuid, boolean, boolean, boolean, boolean, text) from public, anon;
+revoke all on function public.set_student_preferences(uuid[], boolean, boolean) from public, anon;
+revoke all on function public.record_student_email_consent(boolean, text) from public, anon;
+grant execute on function public.set_student_preferences(uuid[], boolean, boolean) to authenticated;
+grant execute on function public.record_student_email_consent(boolean, text) to authenticated;
 grant execute on function public.create_announcement(text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[]) to authenticated;
 grant execute on function public.submit_announcement_review(uuid, boolean, boolean, boolean, boolean, text) to authenticated;
 revoke all on function public.queue_announcement(uuid) from public, anon;
