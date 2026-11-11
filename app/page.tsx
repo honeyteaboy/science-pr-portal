@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bell, CalendarDays, ChevronLeft, ChevronRight, Eye, Search, ShieldCheck, TrendingUp, Users, UserCircle } from "lucide-react";
+import { Bell, CalendarDays, ChevronLeft, ChevronRight, Eye, Search, ShieldCheck, TrendingUp, Users, UserCircle, Instagram, Facebook, Youtube } from "lucide-react";
 
 type Notice = { id: string | number; title: string; category: string; department: string; date: string; eventDate?: string; views: number; pinned?: boolean; tone: string; excerpt: string; targetCohorts?:string[]; urgency?:"normal"|"urgent"; actionLine?:string; reminderDays?:number[]; eventTime?:string; eventLocation?:string; eventLink?:string };
 type StoredNotice = {id:string|number;title:string;category:string;department:string;body:string;status:"published"|"draft"|"pending";pinned:boolean;date:string;eventDate:string;views:number;targetCohorts?:string[];urgency?:"normal"|"urgent";actionLine?:string;reminderDays?:number[];eventTime?:string;eventLocation?:string;eventLink?:string};
@@ -152,7 +152,7 @@ export default function HomePage() {
       {filtered.length===0&&<div className="mt-8 rounded-3xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-500">ไม่พบข่าวที่ตรงกับการค้นหา</div>}
     </section>
     <section id="popular" className="bg-white py-14"><div className="mx-auto max-w-7xl px-5"><p className="text-sm font-bold uppercase tracking-[.2em] text-ocean-600">Trending now</p><h2 className="mt-2 text-2xl font-black">ข่าวที่มีผู้เข้าชมสูงสุด</h2><div className="mt-6 grid gap-3 md:grid-cols-4">{ranked.map((n,i)=><div key={n.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex items-center justify-between"><span className="text-2xl font-black text-ocean-600">0{i+1}</span><span className="text-xs text-slate-400">{n.views.toLocaleString()} views</span></div><p className="mt-4 text-sm font-semibold leading-6">{n.title}</p></div>)}</div></div></section>
-    <footer className="bg-slate-950 px-5 py-8 text-center text-sm text-slate-400">SCIENCE PR PORTAL · คณะวิทยาศาสตร์</footer>
+    <footer className="bg-slate-950 px-5 py-8 text-center text-sm text-slate-400"><div className="flex flex-wrap items-center justify-center gap-5">{process.env.NEXT_PUBLIC_FACULTY_INSTAGRAM_URL&&<a href={process.env.NEXT_PUBLIC_FACULTY_INSTAGRAM_URL} target="_blank" rel="noreferrer" aria-label="Instagram คณะ" className="inline-flex items-center gap-2 hover:text-white"><Instagram size={19}/> Instagram</a>}{process.env.NEXT_PUBLIC_FACULTY_FACEBOOK_URL&&<a href={process.env.NEXT_PUBLIC_FACULTY_FACEBOOK_URL} target="_blank" rel="noreferrer" aria-label="Facebook คณะ" className="inline-flex items-center gap-2 hover:text-white"><Facebook size={19}/> Facebook</a>}{process.env.NEXT_PUBLIC_FACULTY_YOUTUBE_URL&&<a href={process.env.NEXT_PUBLIC_FACULTY_YOUTUBE_URL} target="_blank" rel="noreferrer" aria-label="YouTube คณะ" className="inline-flex items-center gap-2 hover:text-white"><Youtube size={19}/> YouTube</a>}</div><p className="mt-4">SCIENCE PR PORTAL · คณะวิทยาศาสตร์</p></footer>
   </main>;
 }
 function Stat({icon,label,value}:{icon:React.ReactNode;label:string;value:string}) { return <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="grid h-11 w-11 place-items-center rounded-xl bg-ocean-50 text-ocean-600">{icon}</div><div className="min-w-0"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 truncate text-lg font-black">{value}</p></div></div>; }
