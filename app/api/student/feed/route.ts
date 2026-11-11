@@ -39,10 +39,11 @@ export async function GET() {
         .order("published_at", { ascending: false }),
     ]);
 
+    const membershipRows = (memberships ?? []) as unknown as Array<{
+      cohort: { id: string; code: string; label: string } | null;
+    }>;
     const verifiedCohorts = new Set(
-      (memberships ?? [])
-        .map((item: { cohort: { id: string; code: string; label: string } | null }) => item.cohort?.id)
-        .filter((id): id is string => Boolean(id)),
+      membershipRows.map((item) => item.cohort?.id).filter((id): id is string => Boolean(id)),
     );
     const selectedTopics = new Set(preferences?.topic_ids ?? []);
 
