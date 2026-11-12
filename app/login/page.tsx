@@ -218,7 +218,7 @@ export default function LoginPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)} placeholder="กรอกรหัสผ่านอีกครั้ง"
                   className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-ocean-500" />
               </div>
-              <button type="submit" disabled={(kind === "student" && !configured) || loading !== null}
+              <button type="submit" disabled={loading !== null}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-ocean-900 px-4 py-3.5 text-sm font-black text-white hover:bg-ocean-800 disabled:cursor-not-allowed disabled:opacity-50">
                 {loading === "register" ? <LoaderCircle className="animate-spin" size={17} /> : <UserPlus size={17} />}
                 สมัครบัญชีด้วยอีเมล
@@ -248,7 +248,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)} placeholder="รหัสผ่านบัญชีของคุณ"
                   className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-ocean-500" />
               </div>
-              <button type="submit" disabled={!configured || loading !== null}
+              <button type="submit" disabled={loading !== null}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-ocean-900 px-4 py-3.5 text-sm font-black text-white hover:bg-ocean-800 disabled:cursor-not-allowed disabled:opacity-50">
                 {loading === "email" ? <LoaderCircle className="animate-spin" size={17} /> : <LockKeyhole size={17} />}
                 {kind === "staff" && !configured ? "เข้าสู่ระบบผู้ดูแล (Demo)" : "เข้าสู่ระบบด้วยอีเมลและรหัสผ่าน"}
