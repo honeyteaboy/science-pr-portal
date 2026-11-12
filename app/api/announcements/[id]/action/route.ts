@@ -14,7 +14,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .select("role,is_active")
       .eq("id", user.id)
       .single();
-    if (!profile?.is_active || !["admin", "reviewer", "superadmin"].includes(profile.role)) {
+    if (!profile?.is_active || !["admin", "superadmin"].includes(profile.role)) {
       return NextResponse.json({ error: "ไม่มีสิทธิ์ดำเนินการกับประกาศ" }, { status: 403 });
     }
 
