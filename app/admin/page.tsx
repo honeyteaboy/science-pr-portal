@@ -15,7 +15,7 @@ type Announcement = {id:string|number;title:string;category:string;department:st
 type Student = {id:number;studentCode:string;name:string;department:string;year:number;status:"active"|"inactive"};
 type VerifiedStudent = {id:string;email:string|null;full_name:string|null;is_active:boolean;student_cohort_memberships:{cohort:{id:string;code:string;label:string}|null;verified_at:string|null;verified_by:string|null}[]};
 type Admin = {id:string|number;username:string;name:string;role:"superadmin"|"editor"|"viewer"};
-type AdminSession = {id:number;username:string;name:string;role:"superadmin"|"editor"|"reviewer"|"viewer"};
+type AdminSession = {id:number;username:string;name:string;role:"superadmin"|"editor"|"viewer"};
 type Department = {id:number;name:string;short:string};
 
 const seedAnnouncements:Announcement[]=[
