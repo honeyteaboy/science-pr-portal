@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ShieldCheck, GraduationCap, Info, LoaderCircle, LockKeyhole, UserPlus } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
@@ -20,6 +20,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState<"email" | "google" | "register" | null>(null);
   const configured = isSupabaseConfigured();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("role") === "staff") setKind("staff");
+  }, []);
 
   const callbackUrl = (next: string) =>
     `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
@@ -73,7 +78,7 @@ export default function LoginPage() {
       setError("ระบบยังไม่ได้เชื่อม Supabase กรุณาตั้งค่าระบบก่อน");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())) {
       setError("กรุณากรอกอีเมลให้ถูกต้อง");
       return;
     }
