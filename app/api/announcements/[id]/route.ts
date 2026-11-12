@@ -40,7 +40,7 @@ export async function PUT(request: Request, context: RouteContext) {
       .select("role,is_active")
       .eq("id", user.id)
       .single();
-    if (!profile?.is_active || !["admin", "reviewer", "superadmin"].includes(profile.role)) {
+    if (!profile?.is_active || !["admin", "superadmin"].includes(profile.role)) {
       return NextResponse.json({ error: "ไม่มีสิทธิ์แก้ไขประกาศ" }, { status: 403 });
     }
 
