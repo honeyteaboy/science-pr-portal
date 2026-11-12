@@ -42,7 +42,6 @@ export async function GET() {
         topic:topics(id,slug,name),
         targets:announcement_cohorts(cohort:cohorts(id,code,label)),
         links:announcement_links(id,label,url,sort_order),
-        reviews:announcement_reviews(id,reviewer_id,cohorts_checked,date_time_links_checked,reviewer_passed,channels_checked,created_at)
       `)
       .order("created_at", { ascending: false });
 
