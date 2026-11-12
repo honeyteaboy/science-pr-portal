@@ -178,7 +178,7 @@ export default function AdminPage(){
  const filtered=useMemo(()=>announcements.filter(a=>(a.title+" "+a.category+" "+a.department).toLowerCase().includes(query.toLowerCase())),[announcements,query]);
  const isSuperAdmin=currentUser?.role==="superadmin";
  const canEditAnnouncements=isSuperAdmin||currentUser?.role==="editor";
- const canReviewAnnouncements=Boolean(currentUser&&(currentUser.role==="superadmin"||currentUser.role==="editor"||currentUser.role==="reviewer"));
+ const canReviewAnnouncements=Boolean(currentUser&&(currentUser.role==="superadmin"||currentUser.role==="editor"));
  const visibleTabs=!currentUser?tabs.filter(t=>["overview","announcements","calendar"].includes(t.id)):isSuperAdmin?tabs:canEditAnnouncements?tabs.filter(t=>["overview","announcements","students","calendar"].includes(t.id)):tabs.filter(t=>["overview","announcements","calendar"].includes(t.id));
  const flash=(s:string)=>{setNotice(s);window.setTimeout(()=>setNotice(""),2600)};
  const startNew=()=>{if(!canEditAnnouncements){flash("บัญชีนี้ไม่มีสิทธิ์สร้างประกาศ");return}setEditing(null);setLinkDrafts([{label:"",url:""}]);setDraft({title:"",category:"ประกาศ",department:departments[0]?.name||"ประชาสัมพันธ์กลาง",body:"",eventDate:"",eventTime:"",eventLocation:"",eventLink:"",pinned:false,comments:false,image:"",targetCohorts:["all"],urgency:"normal",actionLine:"",channels:["เว็บไซต์"],reminderDays:[14,7,3]});setShowForm(true)};
