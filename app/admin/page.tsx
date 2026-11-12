@@ -262,10 +262,6 @@ export default function AdminPage(){
   flash("ระงับแล้ว ข่าวกลับเป็นฉบับร่าง");
  };
  const requestPublishConfirmation=(id:string|number,mode:"publish"|"queue")=>{
-  const item=announcements.find(a=>a.id===id);
-  if(!item){flash("ไม่พบประกาศที่ต้องการดำเนินการ");return}
-  const summary=["ทบทวนรายละเอียดประกาศอีกครั้ง","","หัวข้อ: "+item.title,"หมวดหมู่: "+item.category,"หน่วยงาน: "+item.department,"กลุ่มเป้าหมาย: "+((item.targetCohorts||["all"]).includes("all")?"ทุกรุ่น":(item.targetCohorts||[]).map(x=>"รุ่น "+x).join(", ")),item.eventDate?"วันกิจกรรม: "+item.eventDate+" "+(item.eventTime||""):"",mode==="queue"?"ยืนยันเพื่อส่งเข้าคิวรอ 10 นาที?":"กดยืนยันแล้วประกาศจะถูกเผยแพร่ทันทีและผู้เข้าชมเว็บไซต์จะเห็นได้","",item.body].filter(Boolean).join("\\n");
-  if(!window.confirm(summary))return;
   if(mode==="queue")void queueAnnouncement(id);else void approveNow(id);
  };
  const setStatus=(id:string|number,status:Announcement["status"])=>{if(!canEditAnnouncements){flash("บัญชีนี้ไม่มีสิทธิ์เปลี่ยนสถานะประกาศ");return}setAnnouncements(xs=>xs.map(a=>a.id===id?{...a,status,postAt:undefined,reviewLog:appendLog(a,status==="draft"?"ย้ายกลับเป็นฉบับร่าง":"เปลี่ยนสถานะเป็นเผยแพร่")}:a));flash(status==="published"?"เผยแพร่ประกาศแล้ว":"ย้ายเป็นฉบับร่างแล้ว")};
