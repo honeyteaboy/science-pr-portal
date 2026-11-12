@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     const { profile } = await getCurrentProfile(supabase);
-    if (!profile || !profile.is_active || !["admin", "reviewer", "superadmin"].includes(profile.role)) {
+    if (!profile || !profile.is_active || !["admin", "superadmin"].includes(profile.role)) {
       return NextResponse.json({ error: "ไม่มีสิทธิ์สร้างประกาศ" }, { status: 403 });
     }
 
