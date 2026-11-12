@@ -58,7 +58,6 @@ function mapDatabaseAnnouncement(row:any):Announcement {
   eventTime:row.event_time||"",eventLocation:row.event_location||"",eventLink:links[0]?.url||"",
   links,channels:row.channels||[],reminderDays:row.reminder_days||[14,7,3],
   image:row.image_url||undefined,postAt:row.scheduled_publish_at?new Date(row.scheduled_publish_at).getTime():undefined,
-  reviewLog:(row.reviews||[]).map((r:any)=>new Date(r.created_at).toLocaleString("th-TH")+" · บันทึกผลตรวจทาน"),
  };
 }
 async function fetchDatabaseAnnouncements():Promise<Announcement[]> {
