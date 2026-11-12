@@ -1012,7 +1012,7 @@ revoke all on function public.set_student_preferences(uuid[], boolean, boolean) 
 revoke all on function public.record_student_email_consent(boolean, text) from public, anon;
 grant execute on function public.set_student_preferences(uuid[], boolean, boolean) to authenticated;
 grant execute on function public.record_student_email_consent(boolean, text) to authenticated;
-grant execute on function public.create_announcement(text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[]) to authenticated;
+grant execute on function public.create_announcement(text, text, uuid, uuid[], jsonb, boolean, timestamptz, date, text, text, text[], text, text, integer[]) to authenticated;
 grant execute on function public.submit_announcement_review(uuid, boolean, boolean, boolean, boolean, text) to authenticated;
 revoke all on function public.queue_announcement(uuid) from public, anon;
 revoke all on function public.publish_announcement_now(uuid) from public, anon;
