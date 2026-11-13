@@ -239,7 +239,7 @@ export default function LoginPage() {
                 <div>
                   <label htmlFor="email" className="block text-sm font-bold">อีเมล</label>
                   <input id="email" type="email" autoComplete="email" required value={email}
-                    onChange={(e) => setEmail(e.target.value)} placeholder={kind === "staff" ? "staff@example.ac.th" : "student@example.ac.th"}
+                    onChange={(e) => setEmail(e.target.value)} placeholder="student@example.ac.th"
                     className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-ocean-500" />
                 </div>
               )}
