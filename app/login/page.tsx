@@ -49,8 +49,8 @@ export default function LoginPage() {
       setError("ระบบยังไม่ได้เชื่อม Supabase กรุณาตั้งค่าระบบก่อน");
       return;
     }
-    if (!email.trim() || !password) {
-      setError("กรุณากรอกอีเมลและรหัสผ่านให้ครบ");
+    if (!(kind === "staff" ? username.trim() : email.trim()) || !password) {
+      setError("กรุณากรอกชื่อบัญชีและรหัสผ่านให้ครบ");
       return;
     }
 
@@ -58,7 +58,7 @@ export default function LoginPage() {
     try {
       const supabase = createClient();
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
+        email: kind === "staff" ? (username.trim().includes("@") ? username.trim().toLowerCase() : username.trim().toLowerCase() + "@admin.sciencepr.local") : email.trim().toLowerCase(),
         password,
       });
       if (authError) throw authError;
@@ -232,11 +232,11 @@ export default function LoginPage() {
             </form>
           ) : (
             <form onSubmit={signInWithPassword} className="mt-6 space-y-4">
-              {kind === "staff" && !configured ? (
+              {kind === "staff" ? (
                 <div>
-                  <label htmlFor="username" className="block text-sm font-bold">ชื่อบัญชีผู้ดูแล</label>
+                  <label htmlFor="username" className="block text-sm font-bold">ชื่อบัญชีผู้ดูแลหรืออีเมล</label>
                   <input id="username" autoComplete="username" required value={username}
-                    onChange={(e) => setUsername(e.target.value)} placeholder="ชื่อบัญชี"
+                    onChange={(e) => setUsername(e.target.value)} placeholder="ชื่อบัญชีแอดมิน"
                     className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-ocean-500" />
                 </div>
               ) : (
@@ -256,7 +256,7 @@ export default function LoginPage() {
               <button type="submit" disabled={loading !== null}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-ocean-900 px-4 py-3.5 text-sm font-black text-white hover:bg-ocean-800 disabled:cursor-not-allowed disabled:opacity-50">
                 {loading === "email" ? <LoaderCircle className="animate-spin" size={17} /> : <LockKeyhole size={17} />}
-                {kind === "staff" && !configured ? "เข้าสู่ระบบผู้ดูแล (Demo)" : "เข้าสู่ระบบด้วยอีเมลและรหัสผ่าน"}
+                {kind === "staff" ? "เข้าสู่ระบบหลังบ้าน" : "เข้าสู่ระบบด้วยอีเมลและรหัสผ่าน"}
               </button>
               {kind === "staff" && configured && (
                 <>
@@ -266,7 +266,7 @@ export default function LoginPage() {
                     {loading === "google" ? <LoaderCircle className="animate-spin" size={17} /> : <span className="text-lg font-black">G</span>}
                     เข้าสู่ระบบด้วย Google
                   </button>
-                  <p className="text-xs leading-5 text-slate-500">บัญชีบุคลากรต้องได้รับการสร้างและกำหนดสิทธิ์จากผู้ดูแลระบบก่อน ระบบจะตรวจ Role จากฐานข้อมูลทุกครั้ง</p>
+                  <p className="text-xs leading-5 text-slate-500">บัญชีแอดมินที่สร้างจากหลังบ้านใช้ชื่อบัญชีและรหัสผ่าน ส่วนบุคลากรเดิมยังเข้าสู่ระบบด้วยอีเมลได้ ระบบตรวจ Role จากฐานข้อมูลทุกครั้ง</p>
                 </>
               )}
             </form>
