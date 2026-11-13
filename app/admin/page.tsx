@@ -362,13 +362,38 @@ export default function AdminPage(){
  const addDepartment=()=>{if(!isSuperAdmin){flash("เฉพาะผู้ดูแลระบบสูงสุดเท่านั้นที่จัดการสาขาได้");return}if(!departmentDraft.name.trim()||!departmentDraft.short.trim()){flash("กรอกชื่อสาขาและตัวย่อ");return}setDepartments(xs=>[{...departmentDraft,id:Date.now()},...xs]);setDepartmentDraft({name:"",short:""});flash("เพิ่มสาขาแล้ว")};
  const resetDemo=()=>{if(!isDemoPreview||!confirm("รีเซ็ตข้อมูลเดโมทั้งหมดกลับเป็นค่าเริ่มต้นใช่หรือไม่?"))return;for(const key of ["science-demo-preview-announcements","science-demo-preview-students","science-demo-preview-departments","science-demo-preview-admins","science-demo-preview-verified-students"])localStorage.removeItem(key);setAnnouncements(seedAnnouncements);setStudents(seedStudents);setDepartments(seedDepartments);setAdmins(seedDemoAdmins);setDbCohorts(seedDemoCohorts);setDbStudents(seedDemoVerifiedStudents);setQuery("");setTab("overview");setShowForm(false);setEditing(null);flash("รีเซ็ตข้อมูลเดโมเป็นค่าเริ่มต้นแล้ว")};
 
- if(!authReady)return <main className="grid min-h-screen place-items-center bg-[#f4f9fb] text-sm font-semibold text-slate-500">กำลังโหลดระบบหลังบ้าน...</main>;
- const guestPreview=!currentUser;
- const displayName=currentUser?.name||"ผู้เข้าชม";
+ if (!authReady) {
+  return <div className="grid min-h-screen place-items-center bg-[#f4f9fb] text-sm font-semibold text-slate-500">กำลังโหลดระบบหลังบ้าน...</div>;
+ }
+ const guestPreview = !currentUser;
+ const displayName = currentUser?.name || "ผู้เข้าชม";
+ const headerIdentity = isDemoPreview
+  ? "ผู้ดูแลเดโม · สิทธิ์เต็มในข้อมูลจำลอง"
+  : guestPreview
+   ? "ผู้เข้าชม · โหมดดูข้อมูล"
+   : (currentUser?.name || "บุคลากร") + " · " + adminRoleLabel(currentUser?.role || "viewer");
+ const leaveAdmin = () => {
+  if (isDemoPreview) {
+   router.replace("/admin");
+   router.refresh();
+   return;
+  }
+  void createClient().auth.signOut().finally(() => {
+   localStorage.removeItem("science-demo-admin-session");
+   router.replace("/login");
+   router.refresh();
+  });
+ };
  return <main className="min-h-screen bg-[#f4f9fb] text-slate-800">
   <div className="border-b border-slate-200 bg-white"><div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
    <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-ocean-900 text-white"><Building2 size={22}/></div><div><p className="text-xs font-bold tracking-widest text-ocean-700">SCIENCE PR PORTAL</p><h1 className="text-lg font-black">ศูนย์จัดการระบบ</h1></div></div>
-   <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-cyan-50 px-3 py-2 text-xs font-bold text-ocean-800">{isDemoPreview?"ผู้ดูแลเดโม · สิทธิ์เต็มในข้อมูลจำลอง":guestPreview?"ผู้เข้าชม · โหมดดูข้อมูล":`${currentUser.name} · ${adminRoleLabel(currentUser?.role)}`}</span><Link href="/" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:border-ocean-400"><ArrowLeft size={16}/> ดูหน้าเว็บไซต์</Link>{isDemoPreview?<button onClick={resetDemo} className="rounded-xl border border-amber-200 px-3 py-2.5 text-sm font-bold text-amber-800">รีเซ็ตเดโม</button>:null}{currentUser?<button onClick={async()=>{if(isDemoPreview){router.replace("/admin");router.refresh();return}try{if(isSupabaseConfigured())await createClient().auth.signOut();}finally{localStorage.removeItem("science-demo-admin-session");router.replace("/login");router.refresh();}}} className="rounded-xl border border-rose-200 px-3 py-2.5 text-sm font-bold text-rose-700">{isDemoPreview?"ออกจากโหมดเดโม":"ออกจากระบบ"}</button>:<Link href="/login?role=staff" className="rounded-xl bg-ocean-900 px-3 py-2.5 text-sm font-bold text-white">เข้าสู่ระบบหลังบ้าน</Link>}<span className="hidden rounded-full bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-800 sm:inline-flex">{isDemoPreview?"Demo · Local only":guestPreview?"โหมดผู้เข้าชม":dataMode==="demo"?"Demo Mode · Local":"Supabase Auth"}</span></div>
+   <div className="flex flex-wrap items-center gap-2">
+    <span className="rounded-full bg-cyan-50 px-3 py-2 text-xs font-bold text-ocean-800">{headerIdentity}</span>
+    <Link href="/" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:border-ocean-400"><ArrowLeft size={16}/> ดูหน้าเว็บไซต์</Link>
+    {isDemoPreview && <button onClick={resetDemo} className="rounded-xl border border-amber-200 px-3 py-2.5 text-sm font-bold text-amber-800">รีเซ็ตเดโม</button>}
+    {currentUser ? <button onClick={leaveAdmin} className="rounded-xl border border-rose-200 px-3 py-2.5 text-sm font-bold text-rose-700">{isDemoPreview ? "ออกจากโหมดเดโม" : "ออกจากระบบ"}</button> : <Link href="/login?role=staff" className="rounded-xl bg-ocean-900 px-3 py-2.5 text-sm font-bold text-white">เข้าสู่ระบบหลังบ้าน</Link>}
+    <span className="hidden rounded-full bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-800 sm:inline-flex">{isDemoPreview ? "Demo · Local only" : guestPreview ? "โหมดผู้เข้าชม" : dataMode === "demo" ? "Demo Mode · Local" : "Supabase Auth"}</span>
+   </div>
   </div></div>
   <div className="mx-auto grid max-w-[1440px] gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:px-8">
    <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-5">
