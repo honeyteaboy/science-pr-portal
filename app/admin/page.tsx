@@ -114,15 +114,15 @@ export default function AdminPage(){
      setAnnouncements(readStore("science-admin-announcements",seedAnnouncements));
      setLoaded(true);setAuthReady(true);return;
     }
-    const {data:profile,error:profileError}=await supabase.from("profiles").select("email,full_name,role,is_active").eq("id",user.id).single();
+    const {data:profile,error:profileError}=await supabase.from("profiles").select("email,username,full_name,role,is_active").eq("id",user.id).single();
     if(profileError||!profile||!profile.is_active||profile.role==="student"){
      setAnnouncements(readStore("science-admin-announcements",seedAnnouncements));
      setLoaded(true);setAuthReady(true);return;
     }
     const mappedRole=profile.role==="superadmin"?"superadmin":profile.role==="admin"?"editor":"viewer";
-    setCurrentUser({id:-1,username:profile.email||user.email||"",name:profile.full_name||user.email||"บุคลากร",role:mappedRole});
+    setCurrentUser({id:-1,username:profile.username||profile.email||user.email||"",name:profile.full_name||user.email||"บุคลากร",role:mappedRole});
     const [{data:staffRows},{data:topicRows},{data:cohortRows}]=await Promise.all([
-      supabase.from("profiles").select("id,email,full_name,role").in("role",["admin","superadmin"]),
+      supabase.from("profiles").select("id,email,username,full_name,role").in("role",["admin","superadmin"]),
       supabase.from("topics").select("id,slug,name").eq("is_active",true).order("sort_order"),
       supabase.from("cohorts").select("id,code,label").eq("is_active",true).order("code"),
     ]);
