@@ -362,9 +362,7 @@ export default function AdminPage(){
  const addDepartment=()=>{if(!isSuperAdmin){flash("เฉพาะผู้ดูแลระบบสูงสุดเท่านั้นที่จัดการสาขาได้");return}if(!departmentDraft.name.trim()||!departmentDraft.short.trim()){flash("กรอกชื่อสาขาและตัวย่อ");return}setDepartments(xs=>[{...departmentDraft,id:Date.now()},...xs]);setDepartmentDraft({name:"",short:""});flash("เพิ่มสาขาแล้ว")};
  const resetDemo=()=>{if(!isDemoPreview||!confirm("รีเซ็ตข้อมูลเดโมทั้งหมดกลับเป็นค่าเริ่มต้นใช่หรือไม่?"))return;for(const key of ["science-demo-preview-announcements","science-demo-preview-students","science-demo-preview-departments","science-demo-preview-admins","science-demo-preview-verified-students"])localStorage.removeItem(key);setAnnouncements(seedAnnouncements);setStudents(seedStudents);setDepartments(seedDepartments);setAdmins(seedDemoAdmins);setDbCohorts(seedDemoCohorts);setDbStudents(seedDemoVerifiedStudents);setQuery("");setTab("overview");setShowForm(false);setEditing(null);flash("รีเซ็ตข้อมูลเดโมเป็นค่าเริ่มต้นแล้ว")};
 
- if (!authReady) {
-  return <div className="grid min-h-screen place-items-center bg-[#f4f9fb] text-sm font-semibold text-slate-500">กำลังโหลดระบบหลังบ้าน...</div>;
- }
+ if (!authReady) return null;
  const guestPreview = !currentUser;
  const displayName = currentUser?.name || "ผู้เข้าชม";
  const headerIdentity = isDemoPreview
