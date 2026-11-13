@@ -38,11 +38,7 @@ export default function LoginPage() {
     event.preventDefault();
     clearFeedback();
     if (kind === "staff" && !configured) {
-      const demoAccounts = [{ username: "systemadmin", password: "SciPR@2026Demo", name: "ผู้ดูแลระบบสูงสุด", role: "superadmin" }];
-      const account = demoAccounts.find((item) => item.username === username.trim() && item.password === password);
-      if (!account) { setError("ชื่อบัญชีหรือรหัสผ่านไม่ถูกต้อง"); return; }
-      localStorage.setItem("science-demo-admin-session", JSON.stringify({ id: 1, username: account.username, name: account.name, role: account.role }));
-      window.location.assign("/admin");
+      setError("ระบบบัญชีผู้ดูแลยังไม่พร้อมใช้งาน กรุณาตั้งค่า Supabase ก่อน");
       return;
     }
     if (!configured) {
