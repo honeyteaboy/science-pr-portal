@@ -42,7 +42,7 @@ export async function GET() {
         created_at,updated_at,published_at,scheduled_publish_at,created_by,pinned,comments_enabled,
         topic:topics(id,slug,name),
         targets:announcement_cohorts(cohort:cohorts(id,code,label)),
-        links:announcement_links(id,label,url,sort_order),
+        links:announcement_links(id,label,url,sort_order)
       `)
       .order("created_at", { ascending: false });
 
