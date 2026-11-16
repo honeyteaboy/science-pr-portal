@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { FileImage, FolderOpen, LoaderCircle, Upload, X } from "lucide-react";
 
 type GalleryImage = { name: string; url: string; createdAt?: string };
+type StorageFile = { id: string | null; name: string; created_at?: string };
 
 export function AnnouncementAssetManager({
   selectedImage,
@@ -29,8 +30,8 @@ export function AnnouncementAssetManager({
         .list("", { limit: 100, sortBy: { column: "created_at", order: "desc" } });
       if (error) throw error;
       const images = (data || [])
-        .filter((file) => file.id && !file.name.startsWith("."))
-        .map((file) => ({
+        .filter((file: StorageFile) => file.id && !file.name.startsWith("."))
+        .map((file: StorageFile) => ({
           name: file.name,
           url: supabase.storage.from("announcement-media").getPublicUrl(file.name).data.publicUrl,
           createdAt: file.created_at,
