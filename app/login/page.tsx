@@ -312,7 +312,40 @@ export default function LoginPage() {
                       onChange={(e) => setConfirmPassword(e.target.value)} placeholder="กรอกรหัสผ่านอีกครั้ง"
                       className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-700 focus:ring-4 focus:ring-cyan-700/10" />
                   </div>
-                  <button type="submit" disabled={loading !== null}
+                  {mode === "login" && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    clearFeedback();
+                    const recoveryEmail = kind === "staff" ? username.trim() : email.trim();
+                    if (!recoveryEmail) {
+                      setError("กรุณากรอกอีเมลบัญชีที่ต้องการรีเซ็ตรหัสผ่านก่อน");
+                      return;
+                    }
+                    const normalizedEmail = recoveryEmail.includes("@")
+                      ? recoveryEmail.toLowerCase()
+                      : recoveryEmail.toLowerCase() + "@admin.sciencepr.local";
+                    setLoading("email");
+                    try {
+                      const supabase = createClient();
+                      const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+                        redirectTo: callbackUrl("/reset-password"),
+                      });
+                      if (resetError) throw resetError;
+                      setMessage("หากอีเมลนี้มีบัญชีอยู่ ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านไปให้ กรุณาตรวจสอบกล่องจดหมายและ Spam");
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "ไม่สามารถส่งลิงก์รีเซ็ตรหัสผ่านได้");
+                    } finally {
+                      setLoading(null);
+                    }
+                  }}
+                  disabled={loading !== null}
+                  className="w-full text-right text-sm font-semibold text-cyan-800 underline underline-offset-4 disabled:opacity-50"
+                >
+                  ลืมรหัสผ่าน? ส่งลิงก์รีเซ็ตทางอีเมล
+                </button>
+              )}
+              <button type="submit" disabled={loading !== null}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#123b56] px-4 py-3.5 text-sm font-black text-white transition hover:bg-[#0b2d43] disabled:cursor-not-allowed disabled:opacity-50">
                     {loading === "register" ? <LoaderCircle className="animate-spin" size={17} /> : <UserPlus size={17} />}
                     สมัครบัญชีด้วยอีเมล
