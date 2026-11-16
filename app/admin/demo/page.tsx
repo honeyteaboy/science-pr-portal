@@ -216,7 +216,6 @@ export default function AdminDemoPage() {
   };
 
   const publishNow = (id: string) => {
-    if (!window.confirm("ยืนยันอนุมัติและเผยแพร่ประกาศตัวอย่างนี้ทันทีหรือไม่?")) return;
     setAnnouncements((items) => items.map((item) => item.id === id
       ? { ...item, status: "published", postAt: undefined }
       : item));
@@ -224,7 +223,6 @@ export default function AdminDemoPage() {
   };
 
   const queueForTenMinutes = (id: string) => {
-    if (!window.confirm("เริ่มนับถอยหลัง 10 นาทีสำหรับประกาศตัวอย่างนี้หรือไม่?")) return;
     setAnnouncements((items) => items.map((item) => item.id === id
       ? { ...item, status: "pending", postAt: Date.now() + 10 * 60 * 1000 }
       : item));
