@@ -222,7 +222,7 @@ export default function AdminPage(){
    }catch(error){flash(error instanceof Error?error.message:"บันทึกประกาศไม่สำเร็จ");return}
   }
   if(editing!==null){setAnnouncements(xs=>xs.map(a=>a.id===editing?{...a,...draft,eventLink:links[0]?.url||"",links,status:"draft",postAt:scheduledTime||undefined,approvedBy:undefined,activityLog:appendLog(a,scheduledTime?"บันทึกเวลาเผยแพร่ไว้ในฉบับร่าง":"แก้ไขเนื้อหาแล้ว บันทึกการแก้ไขแล้ว")}:a));flash(scheduledTime?"บันทึกฉบับร่างพร้อมเวลาเผยแพร่แล้ว":"บันทึกประกาศที่แก้ไขแล้ว")}
-  else{setAnnouncements(xs=>[{...draft,eventLink:links[0]?.url||"",links,id:Date.now(),status:scheduledTime?"pending":"draft",postAt:scheduledTime||undefined,date:new Date().toISOString().slice(0,10),views:0},...xs]);flash(scheduledTime?"บันทึกฉบับร่างพร้อมเวลาเผยแพร่แล้ว":"เพิ่มประกาศฉบับร่างแล้ว")}
+  else{setAnnouncements(xs=>[{...draft,eventLink:links[0]?.url||"",links,id:Date.now(),status:"draft",postAt:scheduledTime||undefined,date:new Date().toISOString().slice(0,10),views:0},...xs]);flash(scheduledTime?"บันทึกฉบับร่างพร้อมเวลาเผยแพร่แล้ว":"เพิ่มประกาศฉบับร่างแล้ว")}
   setShowForm(false);
   }catch(error){flash(error instanceof Error?error.message:"เกิดข้อผิดพลาดระหว่างบันทึกประกาศ");}
   finally{setSavingAnnouncement(false)}
