@@ -137,3 +137,157 @@ textarea::placeholder {
     box-shadow: none !important;
   }
 }
+
+
+/* Manual viewport presets inspired by the reference repository's DeviceSimulatorBar. */
+.device-mode-shell {
+  min-height: 100vh;
+  background: #eaf0f5;
+}
+.device-mode-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  border-bottom: 1px solid #26364a;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+.device-mode-toolbar-inner {
+  display: flex;
+  min-height: 52px;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 8px 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.device-mode-label {
+  flex: 0 0 auto;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+}
+.device-mode-options {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #111e32;
+}
+.device-mode-button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.device-mode-button:hover {
+  background: #26364a;
+  color: #fff;
+}
+.device-mode-button.is-active {
+  background: #1677b8;
+  color: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+}
+.device-mode-button:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+.device-mode-current {
+  min-width: 48px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.device-mode-frame {
+  width: 100%;
+  min-height: calc(100vh - 52px);
+  margin: 0 auto;
+  background: #f8fafc;
+  transition: width 180ms ease, max-width 180ms ease, margin 180ms ease;
+}
+.device-mode-shell[data-device-mode="desktop"] .device-mode-frame {
+  width: 100%;
+  max-width: 1440px;
+  margin: 16px auto;
+  overflow: hidden;
+  border: 1px solid #dbe4ed;
+  border-radius: 18px;
+  box-shadow: 0 8px 28px rgb(15 23 42 / 7%);
+}
+.device-mode-shell[data-device-mode="tablet"] .device-mode-frame {
+  width: 100%;
+  max-width: 768px;
+  margin: 16px auto;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 10%);
+}
+.device-mode-shell[data-device-mode="mobile"] .device-mode-frame {
+  width: 100%;
+  max-width: 390px;
+  margin: 16px auto;
+  overflow: hidden;
+  border: 8px solid #0f172a;
+  border-radius: 34px;
+  background: #f8fafc;
+  box-shadow: 0 18px 48px rgb(15 23 42 / 22%);
+}
+@media (max-width: 600px) {
+  .device-mode-toolbar-inner {
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 7px 8px;
+  }
+  .device-mode-label { display: none; }
+  .device-mode-options {
+    flex: 1 1 auto;
+    justify-content: space-between;
+    min-width: 0;
+  }
+  .device-mode-button {
+    flex: 1 1 0;
+    gap: 4px;
+    padding: 6px 5px;
+    font-size: 11px;
+  }
+  .device-mode-current { display: none; }
+  .device-mode-shell[data-device-mode="desktop"] .device-mode-frame,
+  .device-mode-shell[data-device-mode="tablet"] .device-mode-frame,
+  .device-mode-shell[data-device-mode="mobile"] .device-mode-frame {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+@media print {
+  .device-mode-shell,
+  .device-mode-frame {
+    min-height: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+}
