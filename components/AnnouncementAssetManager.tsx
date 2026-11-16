@@ -9,12 +9,10 @@ type GalleryImage = { name: string; url: string; createdAt?: string };
 export function AnnouncementAssetManager({
   selectedImage,
   onSelectImage,
-  onExtractedText,
   onError,
 }: {
   selectedImage: string;
   onSelectImage: (url: string) => void;
-  onExtractedText: (text: string) => void;
   onError: (message: string) => void;
 }) {
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -128,12 +126,13 @@ export function AnnouncementDocumentImporter({
     }
     setBusy(true);
     setProgress("กำลังอ่านไฟล์...");
-    let worker: { recognize: (input: unknown) => Promise<any>; terminate: () => Promise<unknown> } | null = null;
+    let worker: any = null;
     try {
       let extracted = "";
       if (isPdf) {
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-        const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), disableWorker: true }).promise;
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.mjs", import.meta.url).toString();
+        const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
         if (pdf.numPages > 30) throw new Error("รองรับ PDF ไม่เกิน 30 หน้าในหนึ่งครั้ง");
         const pageTexts: string[] = [];
         const pagesNeedingOcr: Array<{ page: any; number: number }> = [];
