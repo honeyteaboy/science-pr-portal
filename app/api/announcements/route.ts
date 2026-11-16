@@ -18,6 +18,7 @@ type CreateAnnouncementInput = {
   actionLine?: string;
   reminderDays?: number[];
   imageUrl?: string | null;
+  scheduledPublishAt?: string | null;
 };
 
 async function getCurrentProfile(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) {
@@ -67,6 +68,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "กรุณากรอกหัวข้อ รายละเอียด หัวข้อประกาศ และรุ่นเป้าหมายให้ครบ" }, { status: 400 });
     }
 
+    const scheduledAt = input.scheduledPublishAt ? new Date(input.scheduledPublishAt) : null;
+    if (input.scheduledPublishAt && (!scheduledAt || Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now())) {
+      return NextResponse.json({ error: "วันและเวลาเผยแพร่ต้องเป็นเวลาในอนาคต" }, { status: 400 });
+    }
+    const imageUrl = input.imageUrl?.trim() || null;
+    if (imageUrl && (!/^https:\/\/[^/]+\/storage\/v1\/object\/public\/announcement-media\//i.test(imageUrl) || imageUrl.length > 2048)) {
+      return NextResponse.json({ error: "รูปภาพต้องมาจากคลังภาพของระบบ" }, { status: 400 });
+    }
+
     const links = Array.isArray(input.links) ? input.links : [];
     if (links.some((link) => !link.label?.trim() || !/^https:\/\//i.test(link.url ?? ""))) {
       return NextResponse.json({ error: "ลิงก์ทุกช่องต้องมีชื่อและ URL ที่ขึ้นต้นด้วย https://" }, { status: 400 });
@@ -90,7 +100,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ id: announcementId, status: "draft" }, { status: 201 });
+    const { error: mediaError } = await supabase.from("announcements").update({
+      image_url: imageUrl,
+      scheduled_publish_at: scheduledAt ? scheduledAt.toISOString() : null,
+      status: scheduledAt ? "pending" : "draft",
+    }).eq("id", announcementId);
+    if (mediaError) return NextResponse.json({ error: "บันทึกประกาศแล้ว แต่ตั้งค่ารูปหรือเวลาเผยแพร่ไม่สำเร็จ: " + mediaError.message }, { status: 400 });
+    return NextResponse.json({ id: announcementId, status: scheduledAt ? "pending" : "draft" }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "ไม่สามารถบันทึกประกาศได้" }, { status: 500 });
   }
