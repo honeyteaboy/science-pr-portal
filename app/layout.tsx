@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DeviceModeShell } from "@/components/DeviceModeShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,5 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="th"><body>{children}</body></html>;
+  return (
+    <html lang="th">
+      <body>
+        <DeviceModeShell>{children}</DeviceModeShell>
+      </body>
+    </html>
+  );
 }
