@@ -90,7 +90,6 @@ export async function PUT(request: Request, context: RouteContext) {
     const { error: mediaError } = await supabase.from("announcements").update({
       image_url: imageUrl,
       scheduled_publish_at: scheduledAt ? scheduledAt.toISOString() : null,
-      status: "draft",
     }).eq("id", data);
     if (mediaError) return NextResponse.json({ error: "บันทึกประกาศแล้ว แต่ตั้งค่ารูปหรือเวลาเผยแพร่ไม่สำเร็จ: " + mediaError.message }, { status: 400 });
     return NextResponse.json({ id: data, status: "draft" });
