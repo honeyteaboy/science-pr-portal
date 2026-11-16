@@ -131,7 +131,7 @@ export function AnnouncementDocumentImporter({
       let extracted = "";
       if (isPdf) {
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.mjs", import.meta.url).toString();
+        pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
         const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
         if (pdf.numPages > 30) throw new Error("รองรับ PDF ไม่เกิน 30 หน้าในหนึ่งครั้ง");
         const pageTexts: string[] = [];
