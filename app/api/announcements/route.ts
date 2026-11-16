@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     const { error: mediaError } = await supabase.from("announcements").update({
       image_url: imageUrl,
       scheduled_publish_at: scheduledAt ? scheduledAt.toISOString() : null,
-      status: "draft",
+      status: scheduledAt ? "pending" : "draft",
     }).eq("id", announcementId);
     if (mediaError) return NextResponse.json({ error: "บันทึกประกาศแล้ว แต่ตั้งค่ารูปหรือเวลาเผยแพร่ไม่สำเร็จ: " + mediaError.message }, { status: 400 });
     return NextResponse.json({ id: announcementId, status: "draft" }, { status: 201 });
