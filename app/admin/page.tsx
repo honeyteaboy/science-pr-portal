@@ -207,7 +207,7 @@ export default function AdminPage(){
       links:links.map(x=>({label:x.label,url:x.url})),isUrgent:draft.urgency==="urgent",
       eventDate:draft.eventDate||null,eventTime:draft.eventTime||null,eventLocation:draft.eventLocation||null,
       department:draft.department,actionLine:draft.actionLine,channels:draft.channels,
-      reminderDays:draft.reminderDays
+      reminderDays:draft.reminderDays,pinned:draft.pinned,commentsEnabled:draft.comments,imageUrl:null
     })});
     const payload=await response.json();
     if(!response.ok)throw new Error(payload.error||"ไม่สามารถบันทึกประกาศได้");
