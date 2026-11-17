@@ -81,7 +81,6 @@ export async function PUT(request: Request, context: RouteContext) {
     const { error: metadataError } = await supabase.from("announcements").update({
       pinned: Boolean(input.pinned),
       comments_enabled: Boolean(input.commentsEnabled),
-      image_url: input.imageUrl || null,
     }).eq("id", context.params.id);
     if (metadataError) return NextResponse.json({ error: metadataError.message }, { status: 400 });
     return NextResponse.json({ id: data, status: "draft" });
