@@ -48,7 +48,7 @@ export async function PUT(request: Request, context: RouteContext) {
       links?: { label: string; url: string }[]; isUrgent?: boolean;
       deadlineAt?: string | null; eventDate?: string | null; eventTime?: string | null;
       eventLocation?: string | null; channels?: string[]; department?: string;
-      actionLine?: string; reminderDays?: number[];
+      actionLine?: string; reminderDays?: number[]; pinned?: boolean; commentsEnabled?: boolean; imageUrl?: string | null;
     };
     const title = input.title?.trim() || "";
     const body = input.body?.trim() || "";
@@ -78,6 +78,12 @@ export async function PUT(request: Request, context: RouteContext) {
       p_reminder_days: input.reminderDays?.length ? input.reminderDays : [14, 7, 3],
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    const { error: metadataError } = await supabase.from("announcements").update({
+      pinned: Boolean(input.pinned),
+      comments_enabled: Boolean(input.commentsEnabled),
+      image_url: input.imageUrl || null,
+    }).eq("id", context.params.id);
+    if (metadataError) return NextResponse.json({ error: metadataError.message }, { status: 400 });
     return NextResponse.json({ id: data, status: "draft" });
   } catch {
     return NextResponse.json({ error: "ไม่สามารถแก้ไขประกาศได้" }, { status: 500 });
