@@ -18,6 +18,8 @@ type CreateAnnouncementInput = {
   actionLine?: string;
   reminderDays?: number[];
   imageUrl?: string | null;
+  pinned?: boolean;
+  commentsEnabled?: boolean;
 };
 
 async function getCurrentProfile(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) {
@@ -90,6 +92,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    const { error: metadataError } = await supabase.from("announcements").update({
+      pinned: Boolean(input.pinned),
+      comments_enabled: Boolean(input.commentsEnabled),
+      image_url: input.imageUrl || null,
+    }).eq("id", announcementId);
+    if (metadataError) return NextResponse.json({ error: metadataError.message }, { status: 400 });
     return NextResponse.json({ id: announcementId, status: "draft" }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "ไม่สามารถบันทึกประกาศได้" }, { status: 500 });
