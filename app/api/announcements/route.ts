@@ -95,7 +95,6 @@ export async function POST(request: NextRequest) {
     const { error: metadataError } = await supabase.from("announcements").update({
       pinned: Boolean(input.pinned),
       comments_enabled: Boolean(input.commentsEnabled),
-      image_url: input.imageUrl || null,
     }).eq("id", announcementId);
     if (metadataError) return NextResponse.json({ error: metadataError.message }, { status: 400 });
     return NextResponse.json({ id: announcementId, status: "draft" }, { status: 201 });
